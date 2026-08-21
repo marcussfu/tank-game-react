@@ -105,7 +105,48 @@ describe('firing at point-blank range', () => {
     });
 });
 
+describe('player-tank collision', () => {
+    it('blocks the player from walking onto a cell occupied by an enemy tank (M0 playtesting gap: this never did anything in the DOM version)', () => {
+        const engine = new Engine();
+        engine.start();
+
+        // Player starts at [280,460] (row 23, col 14). Force the cell one
+        // step WEST ([260,460], row 23 col 13) to grass so the block below
+        // is provably about the tank, not the real map's wall geometry
+        // (col 15 there is a wall — see the point-blank-range test above),
+        // same live-reference technique the star-collection test uses.
+        const snap = engine.getSnapshot();
+        snap.tiles[23][13] = 0;
+        snap.tanks.length = 0;
+        snap.tanks.push({ keyIndex: 999, position: [260, 460], direction: 'SOUTH', fireTick: 0, moveTickAccumulator: 0 });
+
+        engine.setPlayerInputDirection('WEST');
+
+        expect(engine.getSnapshot().player.position).toEqual([280, 460]); // blocked, same as walking into a wall
+    });
+});
+
 describe('pause', () => {
+    it('togglePause flips between playing and paused, emitting gamePaused/gameResumed, and does nothing from any other status', () => {
+        const engine = new Engine();
+        expect(engine.getSnapshot().status).toBe('idle');
+        engine.togglePause();
+        expect(engine.getSnapshot().status).toBe('idle'); // no-op: not playing
+
+        engine.start();
+        const events: EngineEvent[] = [];
+        engine.on(e => events.push(e));
+
+        engine.togglePause();
+        expect(engine.getSnapshot().status).toBe('paused');
+        engine.togglePause();
+        expect(engine.getSnapshot().status).toBe('playing');
+        // engineBridge relies on these to mirror pause into Redux (M3: the
+        // StateBar pause button and CanvasStage's Escape key otherwise had
+        // no visible effect, since only the Engine's internal status flipped).
+        expect(events.map(e => e.type)).toEqual(['gamePaused', 'gameResumed']);
+    });
+
     it('freezes the clock (and therefore every scheduled/derived effect) until resumed', () => {
         const engine = new Engine();
         engine.start();

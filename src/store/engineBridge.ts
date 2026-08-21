@@ -34,6 +34,12 @@ export const engineBridge = (engine: Engine, dispatch: AppDispatch): (() => void
             case 'gameLost':
                 dispatch(setStatus('lost'));
                 break;
+            case 'gamePaused':
+                dispatch(setStatus('paused'));
+                break;
+            case 'gameResumed':
+                dispatch(setStatus('playing'));
+                break;
             case 'timeTick':
                 dispatch(setTimeRemaining(event.timeRemainingSec));
                 break;

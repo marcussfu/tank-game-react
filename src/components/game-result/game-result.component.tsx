@@ -1,11 +1,8 @@
 
 import { useEffect, Fragment } from 'react';
 import {useAppSelector} from '../../store/hooks';
-import useAudio from '../../store/hooks/useAudio';
+import { audioManager } from '../../audio/AudioManager';
 
-import game_over_bgm from '../../assets/sounds/game_over_bgm.mp3';
-import game_win_bgm from '../../assets/sounds/game_win_bgm.mp3';
-import click from '../../assets/sounds/click.mp3';
 import './game-result.styles.scss';
 import type { Engine } from '../../engine/Engine';
 
@@ -16,30 +13,20 @@ interface GameResultProps {
 const GameResult = ({engine}: GameResultProps) => {
     const status = useAppSelector(state => state.world.status);
     const won = status === 'won';
-    const {bgVolume, effectVolume} = useAppSelector(state => state.settings);
-
-    const gameResultAudio = useAudio(won? game_win_bgm:game_over_bgm, {volume: bgVolume});
-    const clickAudio = useAudio(click, {volume: effectVolume});
-
-    const gameRestart = () => {
-        clickAudio.play();
-        engine.returnToMenu();
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-        e.preventDefault();
-        switch (e.keyCode) {
-            case 13:
-                return gameRestart();
-        }
-    }
-
-    const handleMouseDown = () => {
-        gameRestart();
-    };
 
     useEffect(() => {
-        gameResultAudio.play();
+        const gameRestart = () => {
+            audioManager.playEffect('click');
+            engine.returnToMenu();
+        };
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            gameRestart();
+        };
+        const handleMouseDown = () => {
+            gameRestart();
+        };
 
         window.addEventListener('mousedown', handleMouseDown);
         window.addEventListener('keydown', handleKeyDown);
@@ -47,7 +34,7 @@ const GameResult = ({engine}: GameResultProps) => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('mousedown', handleMouseDown);
         }
-    }, []);
+    }, [engine]);
 
     return (
         <div className='game-result-container' style={{color: won? 'green':'red'}}>

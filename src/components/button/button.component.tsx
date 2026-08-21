@@ -1,7 +1,5 @@
-import {useAppSelector} from '../../store/hooks';
-import useAudio from '../../store/hooks/useAudio';
+import { audioManager } from '../../audio/AudioManager';
 
-import click from '../../assets/sounds/click.mp3';
 import './button.styles.scss';
 import type { ReactNode, HTMLAttributes } from 'react';
 
@@ -11,11 +9,8 @@ interface ButtonProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const Button = ({children, clickFunction, ...otherProps}: ButtonProps) => {
-    const effectVolume = useAppSelector(state => state.settings.effectVolume);
-    const clickAudio = useAudio(click, {volume: effectVolume});
-
     const clickFunctionHandler = () => {
-        clickAudio.replay();
+        audioManager.playEffect('click');
         clickFunction();
     }
 

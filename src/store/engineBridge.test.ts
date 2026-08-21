@@ -57,6 +57,18 @@ describe('engineBridge', () => {
         expect(dispatch).toHaveBeenCalledWith(setStatus('lost'));
     });
 
+    it('translates gamePaused/gameResumed into the matching status', () => {
+        const { engine, emit } = makeFakeEngine();
+        const dispatch = vi.fn();
+        engineBridge(engine, dispatch);
+
+        emit({ type: 'gamePaused' });
+        expect(dispatch).toHaveBeenCalledWith(setStatus('paused'));
+
+        emit({ type: 'gameResumed' });
+        expect(dispatch).toHaveBeenCalledWith(setStatus('playing'));
+    });
+
     it('mirrors timeTick and shortOfTime', () => {
         const { engine, emit } = makeFakeEngine();
         const dispatch = vi.fn();

@@ -28,7 +28,7 @@
         margin-bottom: 1vw;
     }
 
-    .select-item-tank1, .select-item-tank2 {
+    .select-item-tank1 {
         margin-right: 2vw;
         width: 3vw;
         height: 3vw;
@@ -36,12 +36,19 @@
         animation: tank-walk 0.1s infinite alternate;
     }
 
-    .select-item-tank1 {
-        visibility: visible;
-    }
+    .game-start-button-disabled {
+        opacity: 0.4;
+        pointer-events: none;
+        margin-left: 5vw;
 
-    .select-item-tank2 {
-        visibility: hidden;
+        span {
+            color: white;
+
+            small {
+                display: block;
+                font-size: 0.6em;
+            }
+        }
     }
 
     .stage-container {

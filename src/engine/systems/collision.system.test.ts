@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { isImpassable, inBounds, cellsEqual, tileAt } from './collision.system';
+import { isImpassable, inBounds, cellsEqual, tileAt, isOccupiedByTank, isOccupiedByPlayer } from './collision.system';
 import { MAP_WIDTH, MAP_HEIGHT } from '../constants';
+import type { PlayerEntity, TankEntity } from '../types';
 
 describe('isImpassable', () => {
     it('treats tiles below 5 as passable', () => {
@@ -47,5 +48,48 @@ describe('tileAt', () => {
         expect(tileAt(tiles, [20, 0])).toBe(1);
         expect(tileAt(tiles, [0, 20])).toBe(2);
         expect(tileAt(tiles, [20, 20])).toBe(3);
+    });
+});
+
+const makeTank = (overrides: Partial<TankEntity> = {}): TankEntity => ({
+    keyIndex: 1,
+    position: [100, 100],
+    direction: 'SOUTH',
+    fireTick: 0,
+    moveTickAccumulator: 0,
+    ...overrides,
+});
+
+const makePlayer = (overrides: Partial<PlayerEntity> = {}): PlayerEntity => ({
+    position: [280, 460],
+    direction: 'NORTH',
+    hidden: false,
+    inputDirection: '',
+    moveTickAccumulator: 0,
+    ...overrides,
+});
+
+describe('isOccupiedByTank', () => {
+    it('detects a tank at the given cell', () => {
+        expect(isOccupiedByTank([makeTank({ position: [100, 100] })], [100, 100])).toBe(true);
+    });
+
+    it('ignores empty cells', () => {
+        expect(isOccupiedByTank([makeTank({ position: [100, 100] })], [120, 100])).toBe(false);
+    });
+
+    it('excludes the tank checking its own cell via excludeKeyIndex', () => {
+        const tank = makeTank({ keyIndex: 5, position: [100, 100] });
+        expect(isOccupiedByTank([tank], [100, 100], 5)).toBe(false);
+    });
+});
+
+describe('isOccupiedByPlayer', () => {
+    it('detects the player at the given cell', () => {
+        expect(isOccupiedByPlayer(makePlayer({ position: [100, 100] }), [100, 100])).toBe(true);
+    });
+
+    it('ignores a hidden player (already destroyed, no longer physically present)', () => {
+        expect(isOccupiedByPlayer(makePlayer({ position: [100, 100], hidden: true }), [100, 100])).toBe(false);
     });
 });

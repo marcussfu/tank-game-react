@@ -11,7 +11,7 @@ import {
 import { tiles as rawMapTiles } from './maps/map_1';
 import { setupTiles } from './map/mapLoader';
 import { getCurrentPosition } from './systems/movement.system';
-import { inBounds, isImpassable, tileAt, toGridCell } from './systems/collision.system';
+import { inBounds, isImpassable, isOccupiedByTank, tileAt, toGridCell } from './systems/collision.system';
 import { tickEnemyTank } from './systems/ai.system';
 import { checkBulletAtSpawn, createBullet, tickBullet } from './systems/bullets.system';
 import type { BulletTickOutcome } from './systems/bullets.system';
@@ -123,11 +123,20 @@ export class Engine {
     }
 
     pause(): void {
-        if (this.status === 'playing') this.status = 'paused';
+        if (this.status !== 'playing') return;
+        this.status = 'paused';
+        this.emit({ type: 'gamePaused' });
     }
 
     resume(): void {
-        if (this.status === 'paused') this.status = 'playing';
+        if (this.status !== 'paused') return;
+        this.status = 'playing';
+        this.emit({ type: 'gameResumed' });
+    }
+
+    togglePause(): void {
+        if (this.status === 'playing') this.pause();
+        else if (this.status === 'paused') this.resume();
     }
 
     setPlayerInputDirection(dir: Direction | ''): void {
@@ -238,6 +247,7 @@ export class Engine {
             return;
         }
         if (isImpassable(tile)) return;
+        if (isOccupiedByTank(this.tanks, nextPos)) return;
         this.player.position = nextPos;
     }
 
@@ -266,7 +276,7 @@ export class Engine {
             if (tank.moveTickAccumulator < TANK_MOVE_TICKS) continue;
             tank.moveTickAccumulator = 0;
 
-            const { tank: updated, fired } = tickEnemyTank(tank, this.tiles);
+            const { tank: updated, fired } = tickEnemyTank(tank, this.tiles, this.tanks, this.player);
             Object.assign(tank, updated);
 
             if (fired) {

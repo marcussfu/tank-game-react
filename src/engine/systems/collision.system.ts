@@ -1,6 +1,6 @@
 import { MAP_WIDTH, MAP_HEIGHT, SPRITE_SIZE } from '../constants';
 import { IMPASSABLE_THRESHOLD } from '../map/tileTypes';
-import type { GridCell, Position, TileGrid } from '../types';
+import type { GridCell, PlayerEntity, Position, TankEntity, TileGrid } from '../types';
 
 /** Single source of truth for "is this tile value impassable", replacing the
  * three duplicated `obeserveImpassable` implementations in tank/bullet/player
@@ -24,3 +24,14 @@ export const tileAt = (tiles: TileGrid, pos: Position): number => {
     const [row, col] = toGridCell(pos);
     return tiles[row][col];
 };
+
+/** Ports the tank-on-tank/tank-on-player collision the DOM version never had
+ * (player.component.jsx never referenced tank positions at all, so driving
+ * into an enemy tank silently did nothing) — treats an occupied cell as
+ * impassable, the same as a wall. `excludeKeyIndex` lets a tank check the
+ * cell it's about to move into without matching itself. */
+export const isOccupiedByTank = (tanks: TankEntity[], pos: Position, excludeKeyIndex?: number): boolean =>
+    tanks.some(t => t.keyIndex !== excludeKeyIndex && cellsEqual(t.position, pos));
+
+export const isOccupiedByPlayer = (player: PlayerEntity, pos: Position): boolean =>
+    !player.hidden && cellsEqual(player.position, pos);

@@ -13,6 +13,8 @@ export type EngineEvent =
     | { type: 'eagleDestroyed' }
     | { type: 'gameWon' }
     | { type: 'gameLost' }
+    | { type: 'gamePaused' }
+    | { type: 'gameResumed' }
     | { type: 'timeTick'; timeRemainingSec: number }
     | { type: 'shortOfTime' };
 

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
 import { Engine } from '../../engine/Engine';
 import { engineBridge } from '../../store/engineBridge';
+import { audioManager } from '../../audio/AudioManager';
 
 import CanvasStage from '../../render/CanvasStage';
 import GameResult from '../../components/game-result/game-result.component';
@@ -9,10 +10,6 @@ import GameStart from '../../components/game-start/game-start.component';
 import StateBar from '../../components/state-bar/state-bar.component';
 
 import ControlPanel from '../../components/control-panel/control-panel.component';
-
-import bgm from '../../assets/sounds/bgm.mp3';
-import short_of_time_bgm from '../../assets/sounds/short_of_time_bgm.mp3';
-import game_win_bgm from '../../assets/sounds/game_win_bgm.mp3';
 
 import './world.styles.scss';
 
@@ -25,49 +22,33 @@ const World = () => {
 
     const dispatch = useAppDispatch();
     const { status, shortOfTime } = useAppSelector(state => state.world);
-
-    const gameWinAudioRef = useRef(new Audio(game_win_bgm));
-    const bgmAudioRef = useRef(new Audio(bgm));
+    const { bgVolume, effectVolume } = useAppSelector(state => state.settings);
 
     useEffect(() => engineBridge(engine, dispatch), [engine, dispatch]);
+    useEffect(() => audioManager.bindEngine(engine), [engine]);
+    useEffect(() => audioManager.setVolumes(bgVolume, effectVolume), [bgVolume, effectVolume]);
 
+    // Sole place background music reacts to game status (replaces the DOM
+    // version's duplicated ownership — World *and* GameResult each
+    // independently played their own `game_win_bgm` on a win, so it audibly
+    // played twice at once). 'paused' is deliberately absent: whichever
+    // track was already playing keeps playing, unpaused, through a pause.
     useEffect(() => {
-        if (shortOfTime) {
-            bgmAudioRef.current.src = short_of_time_bgm;
-            bgmAudioRef.current.load();
-            bgmAudioRef.current.play();
-        }
-    }, [shortOfTime]);
-
-    // Ports the DOM version's two separate bgmAudioInit() call sites
-    // (`!game_start` and `game_over || game_win`) as one: those conditions
-    // were mutually exclusive and together covered every non-'playing' state,
-    // since game_over/game_win could never be true while game_start was
-    // false (GAME_INIT reset all four together).
-    useEffect(() => {
-        if (status !== 'playing') {
-            bgmAudioRef.current.pause();
-            bgmAudioRef.current.currentTime = 0;
-        }
-    }, [status]);
-
-    useEffect(() => {
-        if (status === 'won') {
-            gameWinAudioRef.current.play();
-        } else {
-            gameWinAudioRef.current.pause();
-            gameWinAudioRef.current.currentTime = 0;
-        }
-    }, [status]);
+        if (status === 'won') audioManager.playBg('win');
+        else if (status === 'lost') audioManager.playBg('lose');
+        else if (status === 'playing' && shortOfTime) audioManager.playBg('shortOfTime');
+        else if (status === 'playing') audioManager.playBg('main');
+        else if (status === 'menu') audioManager.stopBg();
+    }, [status, shortOfTime]);
 
     return (
         <div className='world-container'>
             <ControlPanel type='move' engine={engine} />
             <div className='playground-container'>
                 {status === 'menu' && <GameStart engine={engine} />}
-                {status === 'playing' && <CanvasStage engine={engine} />}
+                {(status === 'playing' || status === 'paused') && <CanvasStage engine={engine} />}
                 {(status === 'won' || status === 'lost') && <GameResult engine={engine} />}
-                {status !== 'menu' && <StateBar />}
+                {status !== 'menu' && <StateBar engine={engine} />}
             </div>
             <ControlPanel type='fire' engine={engine} />
         </div>
