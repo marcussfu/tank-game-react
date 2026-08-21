@@ -1,10 +1,18 @@
-import {createStore} from 'redux';
+import { configureStore } from '@reduxjs/toolkit';
 
-import rootReducer from './reducers/index';
+import worldReducer from './worldSlice';
+import hudReducer from './hudSlice';
+import settingsReducer from './settingsSlice';
 
-const store = createStore(rootReducer);
+const store = configureStore({
+    reducer: {
+        world: worldReducer,
+        hud: hudReducer,
+        settings: settingsReducer,
+    },
+});
 
-export type RootState = ReturnType<typeof rootReducer>;
+export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 
 export default store;

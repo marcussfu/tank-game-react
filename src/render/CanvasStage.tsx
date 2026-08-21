@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Engine } from '../engine/Engine';
+import type { Engine } from '../engine/Engine';
 import { loadSprites } from './sprites';
 import { drawMap } from './drawMap';
 import { drawEntities } from './drawEntities';
@@ -23,13 +23,19 @@ const KEY_TO_DIRECTION: Record<string, Direction> = {
     KeyD: 'EAST',
 };
 
+interface CanvasStageProps {
+    engine: Engine;
+}
+
 /**
  * RAF-driven, fixed-timestep (SIM_TICK_MS) canvas renderer wrapping an
- * `Engine` instance. Not wired into the app yet (M1 scope) — this owns its
- * own keyboard input for now so it's self-contained enough to smoke-test in
- * isolation; M2 will decide how real UI input reaches the engine.
+ * `Engine` instance. Only mounted while `world.status === 'playing'` (World
+ * owns the Engine instance and its lifecycle — this component just ticks and
+ * draws whatever it's given). Owns its own keyboard input, alongside
+ * ControlPanel's touch input — the same dual-input-source design the DOM
+ * version used (Player's keyboard listeners + ControlPanel's joystick/button).
  */
-const CanvasStage = () => {
+const CanvasStage = ({ engine }: CanvasStageProps) => {
     const mapCanvasRef = useRef<HTMLCanvasElement>(null);
     const entityCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -37,9 +43,6 @@ const CanvasStage = () => {
     useResizeCanvas(entityCanvasRef);
 
     useEffect(() => {
-        const engine = new Engine();
-        engine.start();
-
         let disposed = false;
         let rafId = 0;
         let lastTime = performance.now();
@@ -106,10 +109,15 @@ const CanvasStage = () => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
         };
-    }, []);
+    }, [engine]);
 
+    // Deliberately no own aspect-ratio here: the DOM version's Map/Player/Tank
+    // components just filled whatever box their parent (`.playground-container`,
+    // which declares its own `aspect-ratio: 2/1`) gave them, and this stays
+    // consistent with that rather than fighting it with a second, conflicting
+    // aspect-ratio (800x480's true ratio is 5/3, not 2/1).
     return (
-        <div style={{ position: 'relative', width: '100%', aspectRatio: `${MAP_WIDTH}/${MAP_HEIGHT}` }}>
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
             <canvas
                 ref={mapCanvasRef}
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', imageRendering: 'pixelated' }}

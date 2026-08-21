@@ -6,11 +6,11 @@ import SettingDialog from '../../components/setting-dialog/setting-dialog.compon
 import './state-bar.styles.scss';
 
 const StateBar = () => {
-    const {game_over, game_win} = useAppSelector(state => state.worldReducer);
+    const status = useAppSelector(state => state.world.status);
 
     return (
         <div className='state-bar-container' style={{
-            visibility: game_over || game_win? 'hidden': 'visible'
+            visibility: status === 'playing'? 'visible': 'hidden'
         }}>
             <Timing />
             <SettingDialog />

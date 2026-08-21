@@ -1,6 +1,8 @@
 import type { Position } from './types';
 
 export type EngineEvent =
+    | { type: 'gameStarted' }
+    | { type: 'gameReset' }
     | { type: 'tankSpawned'; keyIndex: number; position: Position }
     | { type: 'tankDestroyed'; keyIndex: number; position: Position }
     | { type: 'bulletFired'; keyIndex: string; isPlayerBullet: boolean }

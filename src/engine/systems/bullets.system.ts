@@ -27,11 +27,10 @@ export type BulletTickOutcome =
 
 /**
  * Ports the hit-detection/tile-effect rules from bullet.component.tsx's
- * `obeserveImpassable`/`hitTank`/`hitPlayer`/`changeTiles`, as a pure
- * function: given a bullet and the current world state, decide what happens
- * to it this tick. The caller (Engine) applies the resulting mutations
- * (removing tanks/bullets, hiding the player, changing tiles, scheduling
- * delayed reverts, emitting events).
+ * `obeserveImpassable`/`hitTank`/`hitPlayer`/`changeTiles` — classifies what
+ * happens to a bullet AT a given cell. Shared by `tickBullet` (classifies the
+ * cell the bullet is about to move into) and `checkBulletAtSpawn` (classifies
+ * the cell the bullet was just created on, before it's moved at all).
  *
  * One deliberate behavior change from the DOM version: there, a bullet
  * landing on a tank/player standing on passable terrain (e.g. grass) would
@@ -41,6 +40,32 @@ export type BulletTickOutcome =
  * return value with side effects, not an intentional rule — here, hitting a
  * tank or the player always stops the bullet.
  */
+const classifyCell = (
+    pos: Position,
+    isPlayerBullet: boolean,
+    tiles: TileGrid,
+    tanks: TankEntity[],
+    player: PlayerEntity,
+): BulletTickOutcome => {
+    if (!inBounds(pos)) return { kind: 'expired' };
+
+    if (isPlayerBullet) {
+        const tank = tanks.find(t => t.position[0] === pos[0] && t.position[1] === pos[1]);
+        if (tank) return { kind: 'hitTank', position: pos, tankKeyIndex: tank.keyIndex };
+    } else if (!player.hidden && player.position[0] === pos[0] && player.position[1] === pos[1]) {
+        return { kind: 'hitPlayer', position: pos };
+    }
+
+    const tile = tileAt(tiles, pos);
+    if (Math.round(tile) === 10) return { kind: 'hitEagle', position: pos };
+    if (tile === 12) return { kind: 'hitTreasure', position: pos };
+    if (tile === 5) return { kind: 'hitWall', position: pos };
+    if (isImpassable(tile)) return { kind: 'expired' };
+    return { kind: 'advance', position: pos };
+};
+
+/** Classifies what happens to a bullet on its next tick — the cell it's
+ * about to advance into, not the one it's currently on. */
 export const tickBullet = (
     bullet: BulletEntity,
     tiles: TileGrid,
@@ -48,19 +73,27 @@ export const tickBullet = (
     player: PlayerEntity,
 ): BulletTickOutcome => {
     const nextPos = getCurrentPosition(bullet.direction, bullet.position);
-    if (!inBounds(nextPos)) return { kind: 'expired' };
-
-    if (bullet.isPlayerBullet) {
-        const tank = tanks.find(t => t.position[0] === nextPos[0] && t.position[1] === nextPos[1]);
-        if (tank) return { kind: 'hitTank', position: nextPos, tankKeyIndex: tank.keyIndex };
-    } else if (!player.hidden && player.position[0] === nextPos[0] && player.position[1] === nextPos[1]) {
-        return { kind: 'hitPlayer', position: nextPos };
-    }
-
-    const tile = tileAt(tiles, nextPos);
-    if (Math.round(tile) === 10) return { kind: 'hitEagle', position: nextPos };
-    if (tile === 12) return { kind: 'hitTreasure', position: nextPos };
-    if (tile === 5) return { kind: 'hitWall', position: nextPos };
-    if (isImpassable(tile)) return { kind: 'expired' };
-    return { kind: 'advance', position: nextPos };
+    return classifyCell(nextPos, bullet.isPlayerBullet, tiles, tanks, player);
 };
+
+/**
+ * Classifies a just-created bullet's own spawn cell, before it has moved.
+ * Ports a DOM-version subtlety that's easy to miss when porting `tickBullet`
+ * alone: bullets spawn one cell ahead of the shooter (`getCurrentPosition`
+ * applied once at fire time), and bullet.component.tsx's impassability
+ * effect ran on mount (dependency array `[bulletStates]`, which includes the
+ * initial value) — so a bullet that spawns directly on a wall destroyed that
+ * wall immediately, before its first movement tick. A `tickBullet`-only
+ * implementation never evaluates a bullet's own spawn cell (only cells it's
+ * about to move into), so a bullet spawned inside a wall — e.g. firing at a
+ * wall from point-blank range — would silently phase through it forever,
+ * never destroying it, and if something interesting (the eagle, in one
+ * common map layout) sits one cell past that wall, the bullet reaches it on
+ * the very next tick as if the wall were never there.
+ */
+export const checkBulletAtSpawn = (
+    bullet: BulletEntity,
+    tiles: TileGrid,
+    tanks: TankEntity[],
+    player: PlayerEntity,
+): BulletTickOutcome => classifyCell(bullet.position, bullet.isPlayerBullet, tiles, tanks, player);

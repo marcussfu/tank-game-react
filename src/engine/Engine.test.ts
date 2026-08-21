@@ -17,6 +17,38 @@ describe('start', () => {
         expect(snap.player.position).toEqual([280, 460]);
         expect(snap.timeRemainingSec).toBe(180);
     });
+
+    it('emits gameStarted before the tankSpawned events, so a listener resetting on gameStarted sees the spawns', () => {
+        const engine = new Engine();
+        const events: EngineEvent[] = [];
+        engine.on(e => events.push(e));
+        engine.start();
+        expect(events.map(e => e.type)).toEqual([
+            'gameStarted', 'tankSpawned', 'tankSpawned', 'tankSpawned',
+        ]);
+    });
+});
+
+describe('returnToMenu', () => {
+    it('ports gameInit(): back to idle status with everything cleared, not straight into a new game', () => {
+        const engine = new Engine();
+        engine.start();
+
+        const events: EngineEvent[] = [];
+        engine.on(e => events.push(e));
+        engine.returnToMenu();
+
+        const snap = engine.getSnapshot();
+        expect(snap.status).toBe('idle');
+        expect(snap.tanks).toHaveLength(0);
+        expect(snap.bullets).toHaveLength(0);
+        expect(snap.timeRemainingSec).toBe(180);
+        expect(events.map(e => e.type)).toEqual(['gameReset']);
+
+        // tick() is a no-op outside 'playing', matching every other non-playing status
+        engine.tick();
+        expect(engine.getSnapshot().timeRemainingSec).toBe(180);
+    });
 });
 
 describe('player collecting the star', () => {
@@ -45,6 +77,31 @@ describe('player collecting the star', () => {
         expect(snap.tiles[23][15]).toBe(0);
         expect(snap.tanks).toHaveLength(0);
         expect(events.map(e => e.type)).toEqual(expect.arrayContaining(['starCollected', 'gameWon']));
+    });
+});
+
+describe('firing at point-blank range', () => {
+    it('destroys a wall directly in front of the shooter instead of phasing through to whatever is beyond it', () => {
+        const engine = new Engine();
+        engine.start();
+
+        // Player starts at [280,460]; the real map has a wall at [23][15]
+        // (pixel [300,460]), one cell EAST, with the eagle base sitting
+        // right behind it at [23][16]/[23][17]. Before the checkBulletAtSpawn
+        // fix, a bullet fired here spawned embedded in the wall cell and was
+        // only ever classified one cell further (the eagle) on its first
+        // tick — destroying the eagle directly and leaving the wall in front
+        // of it untouched, exactly the bug the user found by playing.
+        expect(engine.getSnapshot().tiles[23][15]).toBe(5);
+
+        engine.setPlayerInputDirection('EAST'); // faces east; blocked by the wall, doesn't move
+        engine.firePlayerBullet();
+
+        expect(engine.getSnapshot().tiles[23][15]).toBe(9); // the wall booms...
+        expect(engine.getSnapshot().status).toBe('playing'); // ...the eagle is untouched, game not lost
+
+        for (let i = 0; i < 2; i++) engine.tick(); // BOOM_DURATION_TICKS
+        expect(engine.getSnapshot().tiles[23][15]).toBe(0); // wall permanently destroyed
     });
 });
 

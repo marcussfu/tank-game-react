@@ -11,7 +11,7 @@ interface ButtonProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const Button = ({children, clickFunction, ...otherProps}: ButtonProps) => {
-    const effectVolume = useAppSelector(state => state.settingReducer.effectVolume);
+    const effectVolume = useAppSelector(state => state.settings.effectVolume);
     const clickAudio = useAudio(click, {volume: effectVolume});
 
     const clickFunctionHandler = () => {

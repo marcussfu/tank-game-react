@@ -13,7 +13,8 @@ import { setupTiles } from './map/mapLoader';
 import { getCurrentPosition } from './systems/movement.system';
 import { inBounds, isImpassable, tileAt, toGridCell } from './systems/collision.system';
 import { tickEnemyTank } from './systems/ai.system';
-import { createBullet, tickBullet } from './systems/bullets.system';
+import { checkBulletAtSpawn, createBullet, tickBullet } from './systems/bullets.system';
+import type { BulletTickOutcome } from './systems/bullets.system';
 import { getSpawnWave, shouldSpawnWave } from './systems/spawn.system';
 import { isAllTanksCleared, isShortOfTime, isTimeExpired, resolveEagleHit } from './systems/win-lose.system';
 import { EngineEventBus } from './events';
@@ -94,8 +95,7 @@ export class Engine {
         };
     }
 
-    /** Starts a fresh game (or restarts after a win/loss). */
-    start(): void {
+    private resetState(): void {
         this.tiles = setupTiles(rawMapTiles);
         this.tanks = [];
         this.bullets = [];
@@ -104,8 +104,22 @@ export class Engine {
         this.simTick = 0;
         this.shortOfTimeEmitted = false;
         this.delayedActions = [];
+    }
+
+    /** Starts a fresh game (or restarts after a win/loss). */
+    start(): void {
+        this.resetState();
         this.status = 'playing';
+        this.emit({ type: 'gameStarted' });
         this.spawnWave();
+    }
+
+    /** Ports the DOM version's `gameInit()` (GameResult's restart button): back
+     * to the menu, not straight back into a new game. */
+    returnToMenu(): void {
+        this.resetState();
+        this.status = 'idle';
+        this.emit({ type: 'gameReset' });
     }
 
     pause(): void {
@@ -127,9 +141,7 @@ export class Engine {
     firePlayerBullet(): void {
         if (this.status !== 'playing' || this.player.direction === '') return;
         const spawnPos = getCurrentPosition(this.player.direction, this.player.position);
-        const bullet = createBullet({ position: spawnPos, direction: this.player.direction, isPlayerBullet: true });
-        this.bullets.push(bullet);
-        this.emit({ type: 'bulletFired', keyIndex: bullet.keyIndex, isPlayerBullet: true });
+        this.fireBullet(spawnPos, this.player.direction, true);
     }
 
     /** Advances the simulation by exactly one SIM_TICK_MS step. A no-op unless `status === 'playing'`. */
@@ -259,9 +271,7 @@ export class Engine {
 
             if (fired) {
                 const spawnPos = getCurrentPosition(tank.direction, tank.position);
-                const bullet = createBullet({ position: spawnPos, direction: tank.direction, isPlayerBullet: false });
-                this.bullets.push(bullet);
-                this.emit({ type: 'bulletFired', keyIndex: bullet.keyIndex, isPlayerBullet: false });
+                this.fireBullet(spawnPos, tank.direction, false);
             }
         }
     }
@@ -275,41 +285,62 @@ export class Engine {
 
     // ---- bullets ----
 
+    /**
+     * Creates a bullet and immediately classifies its spawn cell — matching
+     * bullet.component.tsx's mount-time impassability check, which ran
+     * before the bullet's first movement tick. Without this, a bullet fired
+     * at point-blank range into a wall (or anything else) would spawn
+     * embedded in that cell and only ever get classified one cell further
+     * on its first tick, silently phasing through whatever it spawned on.
+     */
+    private fireBullet(position: Position, direction: Direction, isPlayerBullet: boolean): void {
+        const bullet = createBullet({ position, direction, isPlayerBullet });
+        this.emit({ type: 'bulletFired', keyIndex: bullet.keyIndex, isPlayerBullet });
+
+        const outcome = checkBulletAtSpawn(bullet, this.tiles, this.tanks, this.player);
+        if (this.applyBulletOutcome(bullet, outcome)) this.bullets.push(bullet);
+    }
+
+    /** Applies a classified outcome to engine state; returns whether the
+     * bullet survives (and so belongs back in `this.bullets`). */
+    private applyBulletOutcome(bullet: BulletEntity, outcome: BulletTickOutcome): boolean {
+        switch (outcome.kind) {
+            case 'advance':
+                bullet.position = outcome.position;
+                return true;
+            case 'expired':
+                this.emit({ type: 'bulletExpired', keyIndex: bullet.keyIndex });
+                return false;
+            case 'hitTank':
+                this.destroyTank(outcome.tankKeyIndex, outcome.position);
+                this.emit({ type: 'bulletExpired', keyIndex: bullet.keyIndex });
+                return false;
+            case 'hitPlayer':
+                this.hitPlayer();
+                this.emit({ type: 'bulletExpired', keyIndex: bullet.keyIndex });
+                return false;
+            case 'hitWall':
+                this.releaseBoom(outcome.position);
+                this.emit({ type: 'bulletExpired', keyIndex: bullet.keyIndex });
+                return false;
+            case 'hitEagle':
+                this.destroyEagle();
+                this.emit({ type: 'bulletExpired', keyIndex: bullet.keyIndex });
+                return false;
+            case 'hitTreasure':
+                this.hitTreasure(outcome.position);
+                this.emit({ type: 'bulletExpired', keyIndex: bullet.keyIndex });
+                return false;
+        }
+    }
+
     private tickBullets(): void {
         if (this.bullets.length === 0) return;
         const remaining: BulletEntity[] = [];
 
         for (const bullet of this.bullets) {
             const outcome = tickBullet(bullet, this.tiles, this.tanks, this.player);
-            switch (outcome.kind) {
-                case 'expired':
-                    this.emit({ type: 'bulletExpired', keyIndex: bullet.keyIndex });
-                    break;
-                case 'advance':
-                    bullet.position = outcome.position;
-                    remaining.push(bullet);
-                    break;
-                case 'hitTank':
-                    this.destroyTank(outcome.tankKeyIndex, outcome.position);
-                    this.emit({ type: 'bulletExpired', keyIndex: bullet.keyIndex });
-                    break;
-                case 'hitPlayer':
-                    this.hitPlayer();
-                    this.emit({ type: 'bulletExpired', keyIndex: bullet.keyIndex });
-                    break;
-                case 'hitWall':
-                    this.releaseBoom(outcome.position);
-                    this.emit({ type: 'bulletExpired', keyIndex: bullet.keyIndex });
-                    break;
-                case 'hitEagle':
-                    this.destroyEagle();
-                    this.emit({ type: 'bulletExpired', keyIndex: bullet.keyIndex });
-                    break;
-                case 'hitTreasure':
-                    this.hitTreasure(outcome.position);
-                    this.emit({ type: 'bulletExpired', keyIndex: bullet.keyIndex });
-                    break;
-            }
+            if (this.applyBulletOutcome(bullet, outcome)) remaining.push(bullet);
         }
 
         // A win clears every bullet immediately (ports bullet.component.tsx's

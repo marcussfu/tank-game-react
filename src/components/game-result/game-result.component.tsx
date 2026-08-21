@@ -1,25 +1,29 @@
 
 import { useEffect, Fragment } from 'react';
 import {useAppSelector} from '../../store/hooks';
-import { useActions } from '../../store/hooks/useActions';
 import useAudio from '../../store/hooks/useAudio';
 
 import game_over_bgm from '../../assets/sounds/game_over_bgm.mp3';
 import game_win_bgm from '../../assets/sounds/game_win_bgm.mp3';
 import click from '../../assets/sounds/click.mp3';
 import './game-result.styles.scss';
+import type { Engine } from '../../engine/Engine';
 
-const GameResult = () => {
-    const {game_over} = useAppSelector(state => state.worldReducer);
-    const {bgVolume, effectVolume} = useAppSelector(state => state.settingReducer);
-    const {gameInit} = useActions();
+interface GameResultProps {
+    engine: Engine;
+}
 
-    const gameResultAudio = useAudio(game_over? game_over_bgm:game_win_bgm, {volume: bgVolume});
+const GameResult = ({engine}: GameResultProps) => {
+    const status = useAppSelector(state => state.world.status);
+    const won = status === 'won';
+    const {bgVolume, effectVolume} = useAppSelector(state => state.settings);
+
+    const gameResultAudio = useAudio(won? game_win_bgm:game_over_bgm, {volume: bgVolume});
     const clickAudio = useAudio(click, {volume: effectVolume});
 
     const gameRestart = () => {
         clickAudio.play();
-        gameInit();
+        engine.returnToMenu();
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -46,15 +50,15 @@ const GameResult = () => {
     }, []);
 
     return (
-        <div className='game-result-container' style={{color: game_over? 'red':'green'}}>
-            {game_over?
-                <Fragment>
-                    <div className='result-text'>GAME</div>
-                    <div className='result-text'>OVER</div>
-                </Fragment>:
+        <div className='game-result-container' style={{color: won? 'green':'red'}}>
+            {won?
                 <Fragment>
                     <div className='result-text'>YOU</div>
                     <div className='result-text'>WIN</div>
+                </Fragment>:
+                <Fragment>
+                    <div className='result-text'>GAME</div>
+                    <div className='result-text'>OVER</div>
                 </Fragment>
             }
         </div>

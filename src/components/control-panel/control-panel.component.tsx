@@ -1,14 +1,13 @@
-
 import {useAppSelector} from '../../store/hooks';
-import {useActions} from '../../store/hooks/useActions';
 
 import {Joystick} from 'react-joystick-component';
 import { styled } from '@mui/material/styles';
 import Button from '@mui/material/Button';
 
 import './control-panel.styles.scss';
-import { useState, useEffect, Fragment } from 'react';
-import type { Direction } from '../../config/types';
+import { Fragment } from 'react';
+import type { Engine } from '../../engine/Engine';
+import type { Direction } from '../../engine/types';
 
 const FireButton = styled(Button)({
     fontFamily: 'Pixeloid',
@@ -25,6 +24,7 @@ const FireButton = styled(Button)({
 
 interface ControlPanelProps {
     type: 'move' | 'fire';
+    engine: Engine;
 }
 
 const moveKeys: Record<string, Direction> = {
@@ -34,31 +34,24 @@ const moveKeys: Record<string, Direction> = {
     'BACKWARD': 'SOUTH'
 }
 
-const ControlPanel = ({type}: ControlPanelProps) => {
-    const {game_over, game_win, game_start} = useAppSelector(state => state.worldReducer);
-    const {isShootedPlayer, setNewDir} = useActions();
-
-    const [newDirState, setNewDirState] = useState<Direction | ''>('');
-
-    useEffect(() => {
-        setNewDir(newDirState);
-    }, [newDirState]);
+const ControlPanel = ({type, engine}: ControlPanelProps) => {
+    const status = useAppSelector(state => state.world.status);
 
     const moveHandler = (direction: Direction | '') => {
-        setNewDirState(direction);
+        engine.setPlayerInputDirection(direction);
     };
 
     const stopHandler = () => {
-        setNewDirState('');
+        engine.setPlayerInputDirection('');
     };
 
     const fireHandler = () => {
-        isShootedPlayer(true);
+        engine.firePlayerBullet();
     };
 
     return (
         <Fragment>
-            {(game_start && !game_over && !game_win) &&
+            {status === 'playing' &&
                 <div className='control-panel-container'>
                     {type === 'move'? <Joystick
                         size={80}

@@ -1,6 +1,6 @@
 import { useState, Fragment } from 'react';
-import {useAppSelector} from '../../store/hooks';
-import {useActions} from '../../store/hooks/useActions';
+import {useAppSelector, useAppDispatch} from '../../store/hooks';
+import {setBgVolume, setEffectVolume} from '../../store/settingsSlice';
 
 import SettingsIcon from '@mui/icons-material/Settings';
 import { styled } from '@mui/material/styles';
@@ -58,8 +58,8 @@ function BootstrapDialogTitle(props: BootstrapDialogTitleProps) {
 
 const SettingDialog = () => {
   const [open, setOpen] = useState(false);
-  const {bgVolume, effectVolume} = useAppSelector(state => state.settingReducer);
-  const {setBgVolume, setEffectVolume} = useActions();
+  const {bgVolume, effectVolume} = useAppSelector(state => state.settings);
+  const dispatch = useAppDispatch();
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -70,11 +70,11 @@ const SettingDialog = () => {
   };
 
   const setBgVolumeHandler = (value: number) => {
-    setBgVolume(value);
+    dispatch(setBgVolume(value));
   };
 
   const setEffectVolumeHandler = (value: number) => {
-    setEffectVolume(value);
+    dispatch(setEffectVolume(value));
   };
 
   return (

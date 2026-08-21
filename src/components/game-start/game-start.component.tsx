@@ -1,5 +1,3 @@
-
-import { useActions } from '../../store/hooks/useActions';
 import useAudio from '../../store/hooks/useAudio';
 import { useAppSelector } from '../../store/hooks';
 import { useEffect, useState } from 'react';
@@ -11,10 +9,14 @@ import game_start_bgm from '../../assets/sounds/game_start_bgm.mp3';
 import click from '../../assets/sounds/click.mp3';
 
 import './game-start.styles.scss';
+import type { Engine } from '../../engine/Engine';
 
-const GameStart = () => {
-    const {gameStart} = useActions();
-    const {bgVolume, effectVolume} = useAppSelector(state => state.settingReducer);
+interface GameStartProps {
+    engine: Engine;
+}
+
+const GameStart = ({engine}: GameStartProps) => {
+    const {bgVolume, effectVolume} = useAppSelector(state => state.settings);
     const [isShowTransitionStage, setIsShowTransitionStage] = useState(false);
     const [selectPlayerCount, setSelectPlayerCount] = useState(1);
 
@@ -37,7 +39,7 @@ const GameStart = () => {
 
     const gameStartActionSetTimeOut_1 = () => {
         setTimeout(() => {
-            gameStart();
+            engine.start();
         }, 4500);
     };
 
