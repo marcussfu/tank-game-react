@@ -1,9 +1,11 @@
+@use '../../app/tokens' as *;
+
 .game-start-container {
     display: flex;
     flex-direction: column;
     // justify-content: center;
     align-items: center;
-    background-color: black;
+    background-color: $color-bg-black;
     height: 100%;
     // overflow: hidden;
     // position: relative;
@@ -42,7 +44,7 @@
         margin-left: 5vw;
 
         span {
-            color: white;
+            color: $color-text;
 
             small {
                 display: block;
@@ -59,13 +61,13 @@
         justify-content: space-between;
 
         .stage-bg-up, .stage-bg-down {
-            background-color: #737573;
+            background-color: $color-bg-transition;
             animation: stage-bg-grown 0.5s forwards;
         }
 
         .stage-text {
             position: absolute;
-            background-color: #737573;
+            background-color: $color-bg-transition;
             z-index: 1;
             font-size: 2.5vw;
             width: 100%;

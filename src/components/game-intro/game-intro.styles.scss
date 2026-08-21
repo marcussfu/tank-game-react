@@ -1,7 +1,21 @@
+@use '../../app/tokens' as *;
+
 .game-intro-container{
     position: relative;
-    background: #ffffff;
+    background: $color-bg-card;
+    // $color-bg-card is white — this component deliberately breaks from the
+    // rest of the (now dark-themed) app's palette, so text color has to be
+    // pinned explicitly rather than inheriting the dark theme's light text,
+    // which the app-wide ThemeProvider (M5) would otherwise cascade in.
+    color: $color-text-on-card;
     border-radius: 5px;
+    // Was float:left with no explicit width and a fixed height:100px —
+    // floated columns shrink-to-fit unevenly and overflowing content (there
+    // was more than 100px of it) spilled into whatever sat next to/below it.
+    // Flex with a natural height fixes both.
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
 
     .pad-40 {
         padding-left: 40px;
@@ -12,8 +26,6 @@
     }
 
     .col-md-4 {
-        float: left;
-        margin: 0 3%;
-        height: 100px;
+        flex: 1 1 220px;
     }
 }

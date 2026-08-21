@@ -1,0 +1,21 @@
+// Shared design tokens (M5 design-system pass) — single source of truth for
+// the game's dark pixel-art palette, replacing values that used to be
+// hardcoded independently in each component's SCSS file. Mirrored (by hand,
+// not a build-time bridge — not worth it for a handful of values) into
+// app/theme.ts for the MUI-rendered side of the UI.
+
+$font-pixeloid: 'Pixeloid', sans-serif;
+
+$color-bg-black: #000;
+$color-bg-letterbox: #616161;
+$color-bg-card: #fff;
+$color-bg-transition: #737573;
+
+$color-text: #fff;
+$color-text-muted: gray;
+$color-text-on-card: #000;
+
+$color-accent: darkturquoise;
+$color-accent-hover: darkcyan;
+
+$color-danger: red;

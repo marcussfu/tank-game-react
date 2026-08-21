@@ -134,7 +134,7 @@ const CanvasStage = ({ engine }: CanvasStageProps) => {
                 <div style={{
                     position: 'absolute', inset: 0, display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
-                    fontFamily: 'Pixeloid', fontSize: '2rem', color: 'white',
+                    fontSize: '2rem', color: 'white',
                     backgroundColor: 'rgba(0, 0, 0, 0.5)',
                 }}>
                     PAUSED

@@ -9,18 +9,17 @@ import { Fragment } from 'react';
 import type { Engine } from '../../engine/Engine';
 import type { Direction } from '../../engine/types';
 
-const FireButton = styled(Button)({
-    fontFamily: 'Pixeloid',
+const FireButton = styled(Button)(({ theme }) => ({
     color: 'black',
     borderRadius: '50%',
     width: '80px',
     height: '80px',
     right: '2.5%',
-    backgroundColor: 'darkturquoise',
+    backgroundColor: theme.palette.primary.main,
     '&:hover': {
-        backgroundColor: 'darkcyan',
+        backgroundColor: theme.palette.primary.dark,
     },
-});
+}));
 
 interface ControlPanelProps {
     type: 'move' | 'fire';

@@ -1,0 +1,27 @@
+@use './app/tokens' as *;
+
+// The regular (normal-weight) @font-face was commented out and only the
+// bold one was active, but nothing in the app ever sets font-weight:bold —
+// so the whole app was silently falling back to the browser's default
+// sans-serif everywhere instead of the intended pixel-art font. Fixed by
+// declaring both weights for real.
+@font-face {
+  font-family: 'Pixeloid';
+  font-weight: normal;
+  font-display: swap;
+  src: local('Pixeloid'), url('./assets/fonts/Pixeloid/PixeloidSans-JR6qo.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Pixeloid';
+  font-weight: bold;
+  font-display: swap;
+  src: local('Pixeloid'), url('./assets/fonts/Pixeloid/PixeloidSansBold-GOjpP.ttf') format('truetype');
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: $font-pixeloid;
+  background-color: $color-bg-letterbox;
+}
