@@ -99,10 +99,20 @@ describe('tickEnemyTank', () => {
         expect(fired).toBe(false);
     });
 
-    it('a tank stuck against a wall still eventually reaches the fire threshold (regression: enemy tanks used to be able to go indefinitely without firing while cornered)', () => {
+    it('a tank fully boxed in on all 4 sides still eventually reaches the fire threshold (regression: enemy tanks used to be able to go indefinitely without firing while cornered)', () => {
+        // A single-wall block (the original regression scenario) is no longer
+        // enough to pin the tank in place: pathfinding now routes around a
+        // single obstruction instead of blindly re-picking a direction that
+        // might also be blocked, so this test boxes the tank in on every
+        // side — the one case pathfinding genuinely can't escape — to keep
+        // testing the actual regression (fire threshold reached even when
+        // movement is impossible), not the now-improved single-wall case.
         vi.spyOn(Math, 'random').mockReturnValue(0.1); // always below the redirect threshold
         const blockedTiles: TileGrid = openTiles.map(row => row.slice());
-        blockedTiles[6][5] = 5; // wall directly south of (100,100)
+        blockedTiles[4][5] = 5; // north
+        blockedTiles[6][5] = 5; // south
+        blockedTiles[5][4] = 5; // west
+        blockedTiles[5][6] = 5; // east
         let tank = makeTank({ position: [100, 100], direction: 'SOUTH', fireTick: 0 });
         let fired = false;
         for (let i = 0; i < 5 && !fired; i++) {
@@ -138,5 +148,72 @@ describe('tickEnemyTank', () => {
         const hiddenPlayer = makePlayer({ position: [100, 120], hidden: true });
         const { tank: next } = tickEnemyTank(tank, openTiles, [tank], hiddenPlayer);
         expect(next.position).toEqual([100, 120]);
+    });
+
+    describe('targeting (aim + pathfinding)', () => {
+        it('turns to aim at the player and holds position when there is a clear grid-aligned shot, instead of wandering', () => {
+            const tank = makeTank({ position: [100, 100], direction: 'NORTH', fireTick: 0 });
+            const player = makePlayer({ position: [100, 300] }); // same column, south of the tank
+            const { tank: next, fired } = tickEnemyTank(tank, openTiles, [tank], player);
+            expect(next.direction).toBe('SOUTH');
+            expect(next.position).toEqual([100, 100]);
+            expect(fired).toBe(false);
+        });
+
+        it('does not aim through a wall even when the player is otherwise grid-aligned, and falls back to normal movement', () => {
+            vi.spyOn(Math, 'random').mockReturnValue(0.5); // no redirect
+            const tiles: TileGrid = openTiles.map(row => row.slice());
+            tiles[10][5] = 5; // wall between the tank and the player, same column
+            const tank = makeTank({ position: [100, 100], direction: 'SOUTH', fireTick: 0 });
+            const player = makePlayer({ position: [100, 300] });
+            const { tank: next } = tickEnemyTank(tank, tiles, [tank], player);
+            expect(next.direction).toBe('SOUTH');
+            expect(next.position).toEqual([100, 120]); // moved forward normally, did not freeze to "aim"
+        });
+
+        it('aims at the eagle when the player is hidden', () => {
+            const tank = makeTank({ position: [320, 100], direction: 'NORTH', fireTick: 0 });
+            const hiddenPlayer = makePlayer({ hidden: true });
+            const { tank: next } = tickEnemyTank(tank, openTiles, [tank], hiddenPlayer);
+            expect(next.direction).toBe('SOUTH'); // toward the eagle sub-tile at (320, 440)
+            expect(next.position).toEqual([320, 100]);
+        });
+
+        it('aims at the eagle when the player is visible but not grid-aligned, and the eagle is', () => {
+            const tank = makeTank({ position: [320, 100], direction: 'NORTH', fireTick: 0 });
+            const { tank: next } = tickEnemyTank(tank, openTiles, [tank], farAwayPlayer);
+            expect(next.direction).toBe('SOUTH');
+        });
+
+        it('redirects via pathfinding around a local obstruction instead of a flat random pick, when forced to redirect', () => {
+            vi.spyOn(Math, 'random')
+                .mockReturnValueOnce(0.95) // >= 0.9, forces a redirect regardless of canMove
+                .mockReturnValueOnce(0.1); // < EAGLE_TARGET_BIAS -> hunt the eagle
+            const tiles: TileGrid = openTiles.map(row => row.slice());
+            tiles[4][5] = 5; // north wall
+            tiles[6][5] = 5; // south wall
+            tiles[5][4] = 5; // west wall
+            // east left open — the only viable first step, so the result is
+            // unambiguous regardless of how ties elsewhere in the BFS resolve.
+            const tank = makeTank({ position: [100, 100], direction: 'SOUTH', fireTick: 0 });
+            const { tank: next } = tickEnemyTank(tank, tiles, [tank], farAwayPlayer);
+            expect(next.direction).toBe('EAST');
+            expect(next.position).toEqual([100, 100]); // a redirect never moves on the same tick
+        });
+
+        it('falls back to a flat random direction when pathfinding cannot reach any target (fully boxed in)', () => {
+            vi.spyOn(Math, 'random')
+                .mockReturnValueOnce(0.95) // forces a redirect
+                .mockReturnValueOnce(0.1) // hunt the eagle (unreachable)
+                .mockReturnValueOnce(0.6); // getChangeDirection's own roll -> EAST
+            const tiles: TileGrid = openTiles.map(row => row.slice());
+            tiles[4][5] = 5;
+            tiles[6][5] = 5;
+            tiles[5][4] = 5;
+            tiles[5][6] = 5; // boxed in on all 4 sides — no path to anything
+            const tank = makeTank({ position: [100, 100], direction: 'SOUTH', fireTick: 0 });
+            const { tank: next } = tickEnemyTank(tank, tiles, [tank], farAwayPlayer);
+            expect(next.direction).toBe('EAST');
+        });
     });
 });

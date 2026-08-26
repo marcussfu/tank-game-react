@@ -11,6 +11,13 @@ export const MAP_HEIGHT = SPRITE_SIZE * 24;
 // directly into `tiles[row][col]` with no SPRITE_SIZE conversion.
 export const FLAG_POSITION: GridCell[] = [[22, 16], [22, 17], [23, 16], [23, 17]];
 
+/** FLAG_POSITION converted from grid indices to pixel Positions — the shape
+ * enemy-AI targeting (ai.system.ts) needs to aim at or pathfind toward the
+ * eagle, since entity positions are all pixel-space elsewhere in the engine. */
+export const EAGLE_TARGET_POSITIONS: Position[] = FLAG_POSITION.map(
+    ([row, col]) => [col * SPRITE_SIZE, row * SPRITE_SIZE] as Position,
+);
+
 export const TIME_LIMIT_SEC = 180;
 
 // Fixed-timestep simulation tick, matching the DOM version's finest-grained
