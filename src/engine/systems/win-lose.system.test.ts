@@ -28,12 +28,23 @@ describe('isShortOfTime', () => {
 });
 
 describe('resolveEagleHit', () => {
-    it('reveals the 4 flag sub-tiles at the eagle grid cells', () => {
-        expect(resolveEagleHit()).toEqual([
+    it('reveals the 4 flag sub-tiles at the given eagle grid cells', () => {
+        const flagPosition: [number, number][] = [[22, 16], [22, 17], [23, 16], [23, 17]];
+        expect(resolveEagleHit(flagPosition)).toEqual([
             { cell: [22, 16], value: 11.1 },
             { cell: [22, 17], value: 11.2 },
             { cell: [23, 16], value: 11.3 },
             { cell: [23, 17], value: 11.4 },
+        ]);
+    });
+
+    it('works for a different level\'s flag position', () => {
+        const flagPosition: [number, number][] = [[22, 19], [22, 20], [23, 19], [23, 20]];
+        expect(resolveEagleHit(flagPosition)).toEqual([
+            { cell: [22, 19], value: 11.1 },
+            { cell: [22, 20], value: 11.2 },
+            { cell: [23, 19], value: 11.3 },
+            { cell: [23, 20], value: 11.4 },
         ]);
     });
 });

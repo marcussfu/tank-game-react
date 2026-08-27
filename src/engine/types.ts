@@ -38,6 +38,19 @@ export interface PlayerEntity {
 
 export type GameStatus = 'idle' | 'playing' | 'paused' | 'won' | 'lost';
 
+/** A complete, self-contained map: the tile layout plus everything that used
+ * to be authored as global constants (FLAG_POSITION/INITIAL_TANK_SPAWNS/
+ * PLAYER_START_POSITION) — those only worked as globals when there was
+ * exactly one map. One `LevelDefinition` per playable map, collected in
+ * maps/registry.ts. */
+export interface LevelDefinition {
+    tiles: TileGrid;
+    /** [row, col] tile-grid indices of the eagle base's 4 sub-tiles. */
+    flagPosition: GridCell[];
+    tankSpawns: { position: Position; direction: Direction }[];
+    playerStart: { position: Position; direction: Direction };
+}
+
 export interface EngineSnapshot {
     status: GameStatus;
     tiles: TileGrid;
@@ -45,4 +58,6 @@ export interface EngineSnapshot {
     bullets: BulletEntity[];
     player: PlayerEntity;
     timeRemainingSec: number;
+    levelIndex: number;
+    totalLevels: number;
 }

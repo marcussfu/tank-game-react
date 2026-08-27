@@ -1,9 +1,9 @@
-import { ENEMY_FIRE_TICK_THRESHOLD, EAGLE_TARGET_POSITIONS } from '../constants';
+import { ENEMY_FIRE_TICK_THRESHOLD } from '../constants';
 import { getCurrentPosition } from './movement.system';
 import { inBounds, isImpassable, isOccupiedByPlayer, isOccupiedByTank, tileAt } from './collision.system';
 import { findAimDirection, findAnyAimDirection } from './los.system';
 import { findNextStep } from './pathfinding.system';
-import type { Direction, PlayerEntity, TankEntity, TileGrid } from '../types';
+import type { Direction, PlayerEntity, Position, TankEntity, TileGrid } from '../types';
 
 /** Ports `getChangeDirection` from config/functions.ts — 25/25/25/25 split.
  * Kept as the fallback when no smarter option applies: neither target has a
@@ -50,11 +50,12 @@ export const tickEnemyTank = (
     tiles: TileGrid,
     tanks: TankEntity[],
     player: PlayerEntity,
+    eagleTargets: Position[],
 ): EnemyTickResult => {
     const aimDirection = player.hidden
-        ? findAnyAimDirection(tiles, tank.position, EAGLE_TARGET_POSITIONS)
+        ? findAnyAimDirection(tiles, tank.position, eagleTargets)
         : (findAimDirection(tiles, tank.position, player.position) ??
-            findAnyAimDirection(tiles, tank.position, EAGLE_TARGET_POSITIONS));
+            findAnyAimDirection(tiles, tank.position, eagleTargets));
 
     let direction: Direction;
     let position = tank.position;
@@ -70,7 +71,7 @@ export const tickEnemyTank = (
 
         if (shouldRedirect) {
             const huntEagle = Math.random() < EAGLE_TARGET_BIAS;
-            const targets = huntEagle ? EAGLE_TARGET_POSITIONS : player.hidden ? [] : [player.position];
+            const targets = huntEagle ? eagleTargets : player.hidden ? [] : [player.position];
             const pathDirection = findNextStep(tiles, tank.position, targets, tanks, player, tank.keyIndex);
             direction = pathDirection ?? getChangeDirection();
         } else {

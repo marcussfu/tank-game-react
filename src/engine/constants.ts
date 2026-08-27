@@ -1,22 +1,15 @@
 import type { GridCell, Position } from './types';
-import type { Direction } from '../types/directions';
 
 export const SPRITE_SIZE = 20;
 export const MAP_WIDTH = SPRITE_SIZE * 40;
 export const MAP_HEIGHT = SPRITE_SIZE * 24;
 
-// [row, col] tile-grid indices of the eagle base's 4 sub-tiles (map_1.ts rows
-// 22-23, cols 16-17 — the 10.1/10.2/10.3/10.4 cells) — grid indices, not a
-// pixel Position, matching how the DOM version's `FLAG_POSITION` was indexed
-// directly into `tiles[row][col]` with no SPRITE_SIZE conversion.
-export const FLAG_POSITION: GridCell[] = [[22, 16], [22, 17], [23, 16], [23, 17]];
-
-/** FLAG_POSITION converted from grid indices to pixel Positions — the shape
- * enemy-AI targeting (ai.system.ts) needs to aim at or pathfind toward the
- * eagle, since entity positions are all pixel-space elsewhere in the engine. */
-export const EAGLE_TARGET_POSITIONS: Position[] = FLAG_POSITION.map(
-    ([row, col]) => [col * SPRITE_SIZE, row * SPRITE_SIZE] as Position,
-);
+/** Converts [row, col] tile-grid indices (how map data like a
+ * `LevelDefinition`'s `flagPosition` is authored) into pixel Positions (how
+ * every entity elsewhere in the engine is positioned) — e.g. so enemy-AI
+ * targeting (ai.system.ts) can aim at or pathfind toward the eagle. */
+export const gridCellsToPositions = (cells: GridCell[]): Position[] =>
+    cells.map(([row, col]) => [col * SPRITE_SIZE, row * SPRITE_SIZE]);
 
 export const TIME_LIMIT_SEC = 180;
 
@@ -50,12 +43,3 @@ export const SPAWN_WAVE_SEC = 60;
 // shortOfTime window (timing.component.tsx: 18 <= timeValue < 20).
 export const SHORT_OF_TIME_MIN_SEC = 18;
 export const SHORT_OF_TIME_MAX_SEC = 20;
-
-export const INITIAL_TANK_SPAWNS: { position: Position; direction: Direction }[] = [
-    { position: [0, 0], direction: 'SOUTH' },
-    { position: [780, 460], direction: 'NORTH' },
-    { position: [740, 0], direction: 'WEST' },
-];
-
-export const PLAYER_START_POSITION: Position = [280, 460];
-export const PLAYER_START_DIRECTION: Direction = 'NORTH';

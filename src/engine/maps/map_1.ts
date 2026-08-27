@@ -1,4 +1,6 @@
-export const tiles: number[][] = [
+import type { LevelDefinition } from '../types';
+
+const tiles: LevelDefinition['tiles'] = [
     [ 0,0,0,0,0,0,0,6,6,0,0,1,1,1,0,0,6,6,0,0,0,0,0,0,0,0,0,0,5,5,0,0,0,0,0,0,0,0,5,5 ],
     [ 0,0,0,0,0,0,0,6,6,0,0,1,1,1,0,0,6,6,0,0,0,0,0,0,0,0,0,0,5,5,0,0,0,0,0,0,0,0,5,5 ],
     [ 0,0,0,5,5,0,0,6,6,0,0,1,1,1,0,0,5,5,0,0,0,0,0,5,5,0,0,0,0,0,0,0,0,0,0,5,5,0,5,5 ],
@@ -24,3 +26,14 @@ export const tiles: number[][] = [
     [ 0,0,5,5,0,0,0,5,5,0,0,0,0,0,0,5,10.1,10.2,5,0,0,0,0,0,0,5,5,5,5,5,5,0,0,0,5,5,5,5,0,0 ],
     [ 0,0,5,5,0,0,0,5,5,0,0,0,0,0,0,5,10.3,10.4,5,0,0,0,0,0,0,5,5,5,5,5,5,0,0,0,5,5,5,5,0,0 ],
 ];
+
+export const map1: LevelDefinition = {
+    tiles,
+    flagPosition: [[22, 16], [22, 17], [23, 16], [23, 17]],
+    tankSpawns: [
+        { position: [0, 0], direction: 'SOUTH' },
+        { position: [780, 460], direction: 'NORTH' },
+        { position: [740, 0], direction: 'WEST' },
+    ],
+    playerStart: { position: [280, 460], direction: 'NORTH' },
+};

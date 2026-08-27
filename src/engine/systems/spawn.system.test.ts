@@ -2,17 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { getSpawnWave, shouldSpawnWave } from './spawn.system';
 
 describe('getSpawnWave', () => {
-    it('returns the 3 fixed spawn points', () => {
-        expect(getSpawnWave()).toEqual([
-            { position: [0, 0], direction: 'SOUTH' },
-            { position: [780, 460], direction: 'NORTH' },
-            { position: [740, 0], direction: 'WEST' },
-        ]);
+    const spawns: { position: [number, number]; direction: 'SOUTH' | 'NORTH' | 'WEST' }[] = [
+        { position: [0, 0], direction: 'SOUTH' },
+        { position: [780, 460], direction: 'NORTH' },
+        { position: [740, 0], direction: 'WEST' },
+    ];
+
+    it('returns the given spawn points unchanged', () => {
+        expect(getSpawnWave(spawns)).toEqual(spawns);
     });
 
     it('returns fresh objects each call (callers may freely mutate)', () => {
-        const a = getSpawnWave();
-        const b = getSpawnWave();
+        const a = getSpawnWave(spawns);
+        const b = getSpawnWave(spawns);
         expect(a).not.toBe(b);
         expect(a[0]).not.toBe(b[0]);
     });

@@ -1,7 +1,7 @@
 import type { Engine } from '../engine/Engine';
 import { TIME_LIMIT_SEC } from '../engine/constants';
 import { setStatus, setShortOfTime } from './worldSlice';
-import { setTimeRemaining, setEnemiesRemaining, resetHud } from './hudSlice';
+import { setTimeRemaining, setEnemiesRemaining, setLevel, resetHud } from './hudSlice';
 import type { AppDispatch } from './store';
 
 /**
@@ -45,6 +45,9 @@ export const engineBridge = (engine: Engine, dispatch: AppDispatch): (() => void
                 break;
             case 'shortOfTime':
                 dispatch(setShortOfTime(true));
+                break;
+            case 'levelChanged':
+                dispatch(setLevel({ levelIndex: event.levelIndex, totalLevels: event.totalLevels }));
                 break;
             case 'tankSpawned':
                 enemiesRemaining += 1;

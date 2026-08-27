@@ -12,20 +12,26 @@ interface GameResultProps {
 
 const GameResult = ({engine}: GameResultProps) => {
     const status = useAppSelector(state => state.world.status);
+    const { levelIndex, totalLevels } = useAppSelector(state => state.hud);
     const won = status === 'won';
+    // A win on any level but the last one moves on to the next map instead
+    // of ending the run — matches the genre convention of linear stage
+    // progression (no level-select screen needed).
+    const hasNextLevel = won && levelIndex < totalLevels - 1;
 
     useEffect(() => {
-        const gameRestart = () => {
+        const proceed = () => {
             audioManager.playEffect('click');
-            engine.returnToMenu();
+            if (hasNextLevel) engine.advanceLevel();
+            else engine.returnToMenu();
         };
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key !== 'Enter') return;
             e.preventDefault();
-            gameRestart();
+            proceed();
         };
         const handleMouseDown = () => {
-            gameRestart();
+            proceed();
         };
 
         window.addEventListener('mousedown', handleMouseDown);
@@ -34,15 +40,23 @@ const GameResult = ({engine}: GameResultProps) => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('mousedown', handleMouseDown);
         }
-    }, [engine]);
+    }, [engine, hasNextLevel]);
 
     return (
         <div className='game-result-container' style={{color: won? 'green':'red'}}>
-            {won?
+            {won && hasNextLevel &&
+                <Fragment>
+                    <div className='result-text'>STAGE</div>
+                    <div className='result-text'>CLEAR</div>
+                </Fragment>
+            }
+            {won && !hasNextLevel &&
                 <Fragment>
                     <div className='result-text'>YOU</div>
                     <div className='result-text'>WIN</div>
-                </Fragment>:
+                </Fragment>
+            }
+            {!won &&
                 <Fragment>
                     <div className='result-text'>GAME</div>
                     <div className='result-text'>OVER</div>

@@ -24,8 +24,65 @@ describe('start', () => {
         engine.on(e => events.push(e));
         engine.start();
         expect(events.map(e => e.type)).toEqual([
-            'gameStarted', 'tankSpawned', 'tankSpawned', 'tankSpawned',
+            'gameStarted', 'levelChanged', 'tankSpawned', 'tankSpawned', 'tankSpawned',
         ]);
+    });
+
+    it('always starts on the first level', () => {
+        const engine = new Engine();
+        engine.start();
+        expect(engine.getSnapshot().levelIndex).toBe(0);
+        expect(engine.getSnapshot().totalLevels).toBeGreaterThan(1);
+    });
+});
+
+describe('advanceLevel', () => {
+    it('is a no-op unless status is won', () => {
+        const engine = new Engine();
+        engine.start();
+        engine.advanceLevel();
+        expect(engine.getSnapshot().levelIndex).toBe(0);
+        expect(engine.getSnapshot().status).toBe('playing');
+    });
+
+    it('moves to the next level, resets the map/tanks/player/timer, and resumes play', () => {
+        const engine = new Engine();
+        engine.start();
+        // Force a win without playing through a full level.
+        engine.getSnapshot().tiles[23][15] = 4; // reveal the star one cell east of the player
+        engine.setPlayerInputDirection('EAST');
+        expect(engine.getSnapshot().status).toBe('won');
+
+        const levelBefore = engine.getSnapshot().levelIndex;
+        engine.advanceLevel();
+
+        const snap = engine.getSnapshot();
+        expect(snap.status).toBe('playing');
+        expect(snap.levelIndex).toBe(levelBefore + 1);
+        expect(snap.timeRemainingSec).toBe(180);
+        expect(snap.tanks.length).toBeGreaterThan(0);
+    });
+
+    it('is a no-op on the last level (no next level to advance to)', () => {
+        const engine = new Engine();
+        engine.start();
+        const totalLevels = engine.getSnapshot().totalLevels;
+
+        // Win and advance all the way to the last level.
+        for (let i = 0; i < totalLevels - 1; i++) {
+            engine.getSnapshot().tiles[23][15] = 4;
+            engine.setPlayerInputDirection('EAST');
+            engine.advanceLevel();
+        }
+        expect(engine.getSnapshot().levelIndex).toBe(totalLevels - 1);
+
+        engine.getSnapshot().tiles[23][15] = 4;
+        engine.setPlayerInputDirection('EAST');
+        expect(engine.getSnapshot().status).toBe('won');
+
+        engine.advanceLevel();
+        expect(engine.getSnapshot().status).toBe('won'); // unchanged: nothing to advance to
+        expect(engine.getSnapshot().levelIndex).toBe(totalLevels - 1);
     });
 });
 

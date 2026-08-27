@@ -16,7 +16,8 @@ export type EngineEvent =
     | { type: 'gamePaused' }
     | { type: 'gameResumed' }
     | { type: 'timeTick'; timeRemainingSec: number }
-    | { type: 'shortOfTime' };
+    | { type: 'shortOfTime' }
+    | { type: 'levelChanged'; levelIndex: number; totalLevels: number };
 
 export type EngineEventListener = (event: EngineEvent) => void;
 

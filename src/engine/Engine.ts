@@ -1,14 +1,13 @@
 import {
     BOOM_DURATION_TICKS,
     GAME_OVER_DELAY_TICKS,
-    PLAYER_START_DIRECTION,
-    PLAYER_START_POSITION,
     SIM_TICK_MS,
     TANK_MOVE_TICKS,
     TIME_LIMIT_SEC,
     TREASURE_REVEAL_TICKS,
+    gridCellsToPositions,
 } from './constants';
-import { tiles as rawMapTiles } from './maps/map_1';
+import { LEVELS } from './maps/registry';
 import { setupTiles } from './map/mapLoader';
 import { getCurrentPosition } from './systems/movement.system';
 import { inBounds, isImpassable, isOccupiedByTank, tileAt, toGridCell } from './systems/collision.system';
@@ -24,6 +23,7 @@ import type {
     Direction,
     EngineSnapshot,
     GameStatus,
+    LevelDefinition,
     PlayerEntity,
     Position,
     TankEntity,
@@ -37,9 +37,9 @@ interface DelayedAction {
     run: () => void;
 }
 
-const makeInitialPlayer = (): PlayerEntity => ({
-    position: PLAYER_START_POSITION,
-    direction: PLAYER_START_DIRECTION,
+const makeInitialPlayer = (level: LevelDefinition): PlayerEntity => ({
+    position: level.playerStart.position,
+    direction: level.playerStart.direction,
     hidden: false,
     inputDirection: '',
     moveTickAccumulator: 0,
@@ -60,10 +60,13 @@ const makeInitialPlayer = (): PlayerEntity => ({
  * instant a pause lifts).
  */
 export class Engine {
+    private levelIndex = 0;
+    private level: LevelDefinition = LEVELS[0];
+    private eagleTargetPositions: Position[] = [];
     private tiles: TileGrid;
     private tanks: TankEntity[] = [];
     private bullets: BulletEntity[] = [];
-    private player: PlayerEntity = makeInitialPlayer();
+    private player: PlayerEntity;
     private status: GameStatus = 'idle';
     private timeRemainingSec = TIME_LIMIT_SEC;
     private simTick = 0;
@@ -73,7 +76,9 @@ export class Engine {
     private readonly eventBus = new EngineEventBus();
 
     constructor() {
-        this.tiles = setupTiles(rawMapTiles);
+        this.tiles = setupTiles(this.level.tiles);
+        this.eagleTargetPositions = gridCellsToPositions(this.level.flagPosition);
+        this.player = makeInitialPlayer(this.level);
     }
 
     on(listener: EngineEventListener): () => void {
@@ -92,34 +97,63 @@ export class Engine {
             bullets: this.bullets,
             player: this.player,
             timeRemainingSec: this.timeRemainingSec,
+            levelIndex: this.levelIndex,
+            totalLevels: LEVELS.length,
         };
     }
 
-    private resetState(): void {
-        this.tiles = setupTiles(rawMapTiles);
+    /** Loads a level's map/eagle/spawn data by index — shared by `resetState`
+     * for both a fresh game (always index 0) and `advanceLevel` (index + 1). */
+    private loadLevel(index: number): void {
+        this.levelIndex = index;
+        this.level = LEVELS[index];
+        this.tiles = setupTiles(this.level.tiles);
+        this.eagleTargetPositions = gridCellsToPositions(this.level.flagPosition);
+    }
+
+    private resetState(levelIndex: number): void {
+        this.loadLevel(levelIndex);
         this.tanks = [];
         this.bullets = [];
-        this.player = makeInitialPlayer();
+        this.player = makeInitialPlayer(this.level);
         this.timeRemainingSec = TIME_LIMIT_SEC;
         this.simTick = 0;
         this.shortOfTimeEmitted = false;
         this.delayedActions = [];
     }
 
-    /** Starts a fresh game (or restarts after a win/loss). */
-    start(): void {
-        this.resetState();
+    /** Shared by `start()` and `advanceLevel()` — both begin play on whatever
+     * level `resetState()` just loaded. */
+    private beginLevel(): void {
         this.status = 'playing';
         this.emit({ type: 'gameStarted' });
+        this.emit({ type: 'levelChanged', levelIndex: this.levelIndex, totalLevels: LEVELS.length });
         this.spawnWave();
+    }
+
+    /** Starts a fresh game (or restarts after a win/loss) — always from the first level. */
+    start(): void {
+        this.resetState(0);
+        this.beginLevel();
     }
 
     /** Ports the DOM version's `gameInit()` (GameResult's restart button): back
      * to the menu, not straight back into a new game. */
     returnToMenu(): void {
-        this.resetState();
+        this.resetState(0);
         this.status = 'idle';
         this.emit({ type: 'gameReset' });
+    }
+
+    /** Moves on from a cleared level to the next one, if any — a no-op unless
+     * `status` is `'won'` and a next level exists (callers should check the
+     * snapshot's `levelIndex`/`totalLevels` before offering this). */
+    advanceLevel(): void {
+        if (this.status !== 'won') return;
+        const nextIndex = this.levelIndex + 1;
+        if (nextIndex >= LEVELS.length) return;
+        this.resetState(nextIndex);
+        this.beginLevel();
     }
 
     pause(): void {
@@ -172,7 +206,7 @@ export class Engine {
     }
 
     private spawnWave(): void {
-        for (const spawn of getSpawnWave()) {
+        for (const spawn of getSpawnWave(this.level.tankSpawns)) {
             const tank: TankEntity = {
                 keyIndex: this.nextTankKey(),
                 position: spawn.position,
@@ -223,7 +257,7 @@ export class Engine {
     }
 
     private destroyEagle(): void {
-        for (const { cell, value } of resolveEagleHit()) {
+        for (const { cell, value } of resolveEagleHit(this.level.flagPosition)) {
             this.tiles[cell[0]][cell[1]] = value;
         }
         this.emit({ type: 'mapChanged' });
@@ -276,7 +310,9 @@ export class Engine {
             if (tank.moveTickAccumulator < TANK_MOVE_TICKS) continue;
             tank.moveTickAccumulator = 0;
 
-            const { tank: updated, fired } = tickEnemyTank(tank, this.tiles, this.tanks, this.player);
+            const { tank: updated, fired } = tickEnemyTank(
+                tank, this.tiles, this.tanks, this.player, this.eagleTargetPositions,
+            );
             Object.assign(tank, updated);
 
             if (fired) {

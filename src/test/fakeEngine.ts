@@ -9,6 +9,8 @@ const emptySnapshot = (): EngineSnapshot => ({
     bullets: [],
     player: { position: [280, 460], direction: 'NORTH', hidden: false, inputDirection: '', moveTickAccumulator: 0 },
     timeRemainingSec: 180,
+    levelIndex: 0,
+    totalLevels: 1,
 });
 
 /** A test double for `Engine` — components only ever call a handful of its
@@ -18,6 +20,7 @@ export const makeFakeEngine = (overrides: Partial<Engine> = {}): Engine => ({
     on: vi.fn(() => () => {}),
     start: vi.fn(),
     returnToMenu: vi.fn(),
+    advanceLevel: vi.fn(),
     pause: vi.fn(),
     resume: vi.fn(),
     togglePause: vi.fn(),

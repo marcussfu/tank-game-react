@@ -1,8 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getChangeDirection, tickEnemyTank } from './ai.system';
-import type { PlayerEntity, TankEntity, TileGrid } from '../types';
+import type { PlayerEntity, Position, TankEntity, TileGrid } from '../types';
 
 const openTiles: TileGrid = Array.from({ length: 24 }, () => Array(40).fill(0));
+
+/** Most tests here aren't about eagle-targeting, so they pass no candidates —
+ * equivalent to the eagle simply not being reachable/alignable from wherever
+ * the test tank sits. */
+const noEagleTargets: Position[] = [];
 
 const makeTank = (overrides: Partial<TankEntity> = {}): TankEntity => ({
     keyIndex: 1,
@@ -48,7 +53,7 @@ describe('tickEnemyTank', () => {
     it('moves forward and increments fireTick on a successful, non-redirect tick', () => {
         vi.spyOn(Math, 'random').mockReturnValue(0.5); // below the 0.9 redirect threshold
         const tank = makeTank({ fireTick: 1 });
-        const { tank: next, fired } = tickEnemyTank(tank, openTiles, [tank], farAwayPlayer);
+        const { tank: next, fired } = tickEnemyTank(tank, openTiles, [tank], farAwayPlayer, noEagleTargets);
         expect(next.position).toEqual([100, 120]); // SOUTH move
         expect(next.fireTick).toBe(2);
         expect(fired).toBe(false);
@@ -57,44 +62,43 @@ describe('tickEnemyTank', () => {
     it('fires and resets fireTick to 0 on the 5th successful move, without changing direction', () => {
         vi.spyOn(Math, 'random').mockReturnValue(0.5);
         const tank = makeTank({ fireTick: 4 });
-        const { tank: next, fired } = tickEnemyTank(tank, openTiles, [tank], farAwayPlayer);
+        const { tank: next, fired } = tickEnemyTank(tank, openTiles, [tank], farAwayPlayer, noEagleTargets);
         expect(fired).toBe(true);
         expect(next.fireTick).toBe(0);
         expect(next.direction).toBe('SOUTH');
     });
 
     it('redirects without moving, but still accumulates fireTick, on the 10% random-change roll', () => {
-        vi.spyOn(Math, 'random')
-            .mockReturnValueOnce(0.95) // >= 0.9 triggers redirect
-            .mockReturnValueOnce(0.1); // getChangeDirection's own roll -> SOUTH
+        // A redirect's new direction is now chosen by pathfinding (or, failing
+        // that, getChangeDirection) rather than a single flat random pick, so
+        // this test — about *whether* a redirect triggers, not which specific
+        // direction results — no longer pins an exact direction; that's
+        // covered by the dedicated targeting tests below. A single repeated
+        // mock value (not mockReturnValueOnce) keeps every Math.random() call
+        // this exercises deterministic, however many there turn out to be.
+        vi.spyOn(Math, 'random').mockReturnValue(0.95); // >= 0.9 triggers redirect
         const tank = makeTank({ position: [100, 100], fireTick: 3 });
-        const { tank: next, fired } = tickEnemyTank(tank, openTiles, [tank], farAwayPlayer);
+        const { tank: next, fired } = tickEnemyTank(tank, openTiles, [tank], farAwayPlayer, noEagleTargets);
         expect(next.position).toEqual([100, 100]);
         expect(next.fireTick).toBe(4);
-        expect(next.direction).toBe('SOUTH');
         expect(fired).toBe(false);
     });
 
     it('redirects without moving, but still accumulates fireTick, when the next cell is impassable', () => {
-        vi.spyOn(Math, 'random')
-            .mockReturnValueOnce(0.1) // below redirect threshold, but blocked below
-            .mockReturnValueOnce(0.6); // getChangeDirection's own roll -> EAST
+        vi.spyOn(Math, 'random').mockReturnValue(0.1); // below redirect threshold, but blocked below anyway
         const blockedTiles: TileGrid = openTiles.map(row => row.slice());
         blockedTiles[6][5] = 5; // wall directly south of (100,100)
         const tank = makeTank({ position: [100, 100], direction: 'SOUTH', fireTick: 2 });
-        const { tank: next, fired } = tickEnemyTank(tank, blockedTiles, [tank], farAwayPlayer);
+        const { tank: next, fired } = tickEnemyTank(tank, blockedTiles, [tank], farAwayPlayer, noEagleTargets);
         expect(next.position).toEqual([100, 100]);
         expect(next.fireTick).toBe(3);
-        expect(next.direction).toBe('EAST');
         expect(fired).toBe(false);
     });
 
     it('redirects without moving when the next cell is out of bounds', () => {
-        vi.spyOn(Math, 'random')
-            .mockReturnValueOnce(0.1)
-            .mockReturnValueOnce(0.6);
+        vi.spyOn(Math, 'random').mockReturnValue(0.1);
         const tank = makeTank({ position: [0, 0], direction: 'WEST', fireTick: 0 });
-        const { tank: next, fired } = tickEnemyTank(tank, openTiles, [tank], farAwayPlayer);
+        const { tank: next, fired } = tickEnemyTank(tank, openTiles, [tank], farAwayPlayer, noEagleTargets);
         expect(next.position).toEqual([0, 0]);
         expect(fired).toBe(false);
     });
@@ -116,7 +120,7 @@ describe('tickEnemyTank', () => {
         let tank = makeTank({ position: [100, 100], direction: 'SOUTH', fireTick: 0 });
         let fired = false;
         for (let i = 0; i < 5 && !fired; i++) {
-            ({ tank, fired } = tickEnemyTank(tank, blockedTiles, [tank], farAwayPlayer));
+            ({ tank, fired } = tickEnemyTank(tank, blockedTiles, [tank], farAwayPlayer, noEagleTargets));
         }
         expect(fired).toBe(true);
         expect(tank.position).toEqual([100, 100]); // never actually moved, only redirected
@@ -128,7 +132,7 @@ describe('tickEnemyTank', () => {
             .mockReturnValueOnce(0.6);
         const tank = makeTank({ position: [100, 100], direction: 'SOUTH', fireTick: 0 });
         const otherTank = makeTank({ keyIndex: 2, position: [100, 120] }); // directly south
-        const { tank: next } = tickEnemyTank(tank, openTiles, [tank, otherTank], farAwayPlayer);
+        const { tank: next } = tickEnemyTank(tank, openTiles, [tank, otherTank], farAwayPlayer, noEagleTargets);
         expect(next.position).toEqual([100, 100]);
     });
 
@@ -138,7 +142,7 @@ describe('tickEnemyTank', () => {
             .mockReturnValueOnce(0.6);
         const tank = makeTank({ position: [100, 100], direction: 'SOUTH', fireTick: 0 });
         const player = makePlayer({ position: [100, 120] }); // directly south
-        const { tank: next } = tickEnemyTank(tank, openTiles, [tank], player);
+        const { tank: next } = tickEnemyTank(tank, openTiles, [tank], player, noEagleTargets);
         expect(next.position).toEqual([100, 100]);
     });
 
@@ -146,7 +150,7 @@ describe('tickEnemyTank', () => {
         vi.spyOn(Math, 'random').mockReturnValue(0.5);
         const tank = makeTank({ position: [100, 100], direction: 'SOUTH', fireTick: 0 });
         const hiddenPlayer = makePlayer({ position: [100, 120], hidden: true });
-        const { tank: next } = tickEnemyTank(tank, openTiles, [tank], hiddenPlayer);
+        const { tank: next } = tickEnemyTank(tank, openTiles, [tank], hiddenPlayer, noEagleTargets);
         expect(next.position).toEqual([100, 120]);
     });
 
@@ -154,7 +158,7 @@ describe('tickEnemyTank', () => {
         it('turns to aim at the player and holds position when there is a clear grid-aligned shot, instead of wandering', () => {
             const tank = makeTank({ position: [100, 100], direction: 'NORTH', fireTick: 0 });
             const player = makePlayer({ position: [100, 300] }); // same column, south of the tank
-            const { tank: next, fired } = tickEnemyTank(tank, openTiles, [tank], player);
+            const { tank: next, fired } = tickEnemyTank(tank, openTiles, [tank], player, noEagleTargets);
             expect(next.direction).toBe('SOUTH');
             expect(next.position).toEqual([100, 100]);
             expect(fired).toBe(false);
@@ -166,7 +170,7 @@ describe('tickEnemyTank', () => {
             tiles[10][5] = 5; // wall between the tank and the player, same column
             const tank = makeTank({ position: [100, 100], direction: 'SOUTH', fireTick: 0 });
             const player = makePlayer({ position: [100, 300] });
-            const { tank: next } = tickEnemyTank(tank, tiles, [tank], player);
+            const { tank: next } = tickEnemyTank(tank, tiles, [tank], player, noEagleTargets);
             expect(next.direction).toBe('SOUTH');
             expect(next.position).toEqual([100, 120]); // moved forward normally, did not freeze to "aim"
         });
@@ -174,14 +178,16 @@ describe('tickEnemyTank', () => {
         it('aims at the eagle when the player is hidden', () => {
             const tank = makeTank({ position: [320, 100], direction: 'NORTH', fireTick: 0 });
             const hiddenPlayer = makePlayer({ hidden: true });
-            const { tank: next } = tickEnemyTank(tank, openTiles, [tank], hiddenPlayer);
+            const eagleTargets: Position[] = [[320, 440]];
+            const { tank: next } = tickEnemyTank(tank, openTiles, [tank], hiddenPlayer, eagleTargets);
             expect(next.direction).toBe('SOUTH'); // toward the eagle sub-tile at (320, 440)
             expect(next.position).toEqual([320, 100]);
         });
 
         it('aims at the eagle when the player is visible but not grid-aligned, and the eagle is', () => {
             const tank = makeTank({ position: [320, 100], direction: 'NORTH', fireTick: 0 });
-            const { tank: next } = tickEnemyTank(tank, openTiles, [tank], farAwayPlayer);
+            const eagleTargets: Position[] = [[320, 440]];
+            const { tank: next } = tickEnemyTank(tank, openTiles, [tank], farAwayPlayer, eagleTargets);
             expect(next.direction).toBe('SOUTH');
         });
 
@@ -196,7 +202,8 @@ describe('tickEnemyTank', () => {
             // east left open — the only viable first step, so the result is
             // unambiguous regardless of how ties elsewhere in the BFS resolve.
             const tank = makeTank({ position: [100, 100], direction: 'SOUTH', fireTick: 0 });
-            const { tank: next } = tickEnemyTank(tank, tiles, [tank], farAwayPlayer);
+            const eagleTargets: Position[] = [[100, 300]]; // reachable only via the east detour
+            const { tank: next } = tickEnemyTank(tank, tiles, [tank], farAwayPlayer, eagleTargets);
             expect(next.direction).toBe('EAST');
             expect(next.position).toEqual([100, 100]); // a redirect never moves on the same tick
         });
@@ -212,7 +219,8 @@ describe('tickEnemyTank', () => {
             tiles[5][4] = 5;
             tiles[5][6] = 5; // boxed in on all 4 sides — no path to anything
             const tank = makeTank({ position: [100, 100], direction: 'SOUTH', fireTick: 0 });
-            const { tank: next } = tickEnemyTank(tank, tiles, [tank], farAwayPlayer);
+            const eagleTargets: Position[] = [[100, 300]];
+            const { tank: next } = tickEnemyTank(tank, tiles, [tank], farAwayPlayer, eagleTargets);
             expect(next.direction).toBe('EAST');
         });
     });

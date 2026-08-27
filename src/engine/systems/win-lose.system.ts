@@ -1,4 +1,4 @@
-import { FLAG_POSITION, SHORT_OF_TIME_MAX_SEC, SHORT_OF_TIME_MIN_SEC } from '../constants';
+import { SHORT_OF_TIME_MAX_SEC, SHORT_OF_TIME_MIN_SEC } from '../constants';
 import type { GridCell, TankEntity } from '../types';
 
 /** Ports bullet.component.tsx's win check after removing a tank: `tanks.length <= 0`. */
@@ -17,6 +17,8 @@ export interface FlagReveal {
 }
 
 /** Ports bullet.component.tsx's eagle-hit tile swap:
- * `FLAG_POSITION.map((row, index) => tiles[row[0]][row[1]] = 11 + 0.1*(index+1))`. */
-export const resolveEagleHit = (): FlagReveal[] =>
-    FLAG_POSITION.map((cell, index) => ({ cell, value: 11 + 0.1 * (index + 1) }));
+ * `FLAG_POSITION.map((row, index) => tiles[row[0]][row[1]] = 11 + 0.1*(index+1))`.
+ * Takes the current level's flag position rather than a global constant, now
+ * that different levels have their eagle at different grid cells. */
+export const resolveEagleHit = (flagPosition: GridCell[]): FlagReveal[] =>
+    flagPosition.map((cell, index) => ({ cell, value: 11 + 0.1 * (index + 1) }));
