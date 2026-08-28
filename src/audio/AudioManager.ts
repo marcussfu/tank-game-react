@@ -117,6 +117,7 @@ export class AudioManager {
                     this.playEffect('crash');
                     break;
                 case 'starCollected':
+                case 'powerupCollected':
                     this.playEffect('findStar');
                     break;
                 default:

@@ -1,0 +1,7 @@
+.lives-text {
+    font-size: 20px;
+    // No inline color like Timing sets — give it an explicit readable one so
+    // it doesn't render as default black on the dark game backdrop.
+    color: #ffd700;
+    margin: 0 8px;
+}

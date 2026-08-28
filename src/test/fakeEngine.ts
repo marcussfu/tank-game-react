@@ -7,10 +7,15 @@ const emptySnapshot = (): EngineSnapshot => ({
     tiles: Array.from({ length: 24 }, () => Array(40).fill(0)),
     tanks: [],
     bullets: [],
-    player: { position: [280, 460], direction: 'NORTH', hidden: false, inputDirection: '', moveTickAccumulator: 0 },
+    powerups: [],
+    player: {
+        position: [280, 460], direction: 'NORTH', hidden: false, inputDirection: '', moveTickAccumulator: 0,
+        invincible: false,
+    },
     timeRemainingSec: 180,
     levelIndex: 0,
     totalLevels: 1,
+    lives: 3,
 });
 
 /** A test double for `Engine` — components only ever call a handful of its

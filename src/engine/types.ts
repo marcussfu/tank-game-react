@@ -34,6 +34,17 @@ export interface PlayerEntity {
     inputDirection: Direction | '';
     /** Sim ticks elapsed since the player last processed a move. */
     moveTickAccumulator: number;
+    /** While true, `hitPlayer()` is a no-op and driving onto a tank destroys
+     * it instead of blocking movement — granted by the invincibility powerup. */
+    invincible: boolean;
+}
+
+export type PowerupKind = 'invincibility' | 'freeze';
+
+export interface PowerupEntity {
+    keyIndex: string;
+    position: Position;
+    kind: PowerupKind;
 }
 
 export type GameStatus = 'idle' | 'playing' | 'paused' | 'won' | 'lost';
@@ -57,7 +68,9 @@ export interface EngineSnapshot {
     tanks: TankEntity[];
     bullets: BulletEntity[];
     player: PlayerEntity;
+    powerups: PowerupEntity[];
     timeRemainingSec: number;
     levelIndex: number;
     totalLevels: number;
+    lives: number;
 }

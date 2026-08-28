@@ -64,6 +64,7 @@ describe('AudioManager', () => {
         bus.emit({ type: 'tankDestroyed', keyIndex: 1, position: [0, 0] });
         bus.emit({ type: 'playerHit' });
         bus.emit({ type: 'starCollected' });
+        bus.emit({ type: 'powerupCollected', kind: 'invincibility' });
         bus.emit({ type: 'mapChanged' }); // unrelated event, should not trigger anything
 
         expect(playEffectSpy.mock.calls).toEqual([
@@ -71,6 +72,7 @@ describe('AudioManager', () => {
             ['shootTank'],
             ['crash'],
             ['crash'],
+            ['findStar'],
             ['findStar'],
         ]);
     });

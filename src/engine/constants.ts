@@ -43,3 +43,15 @@ export const SPAWN_WAVE_SEC = 60;
 // shortOfTime window (timing.component.tsx: 18 <= timeValue < 20).
 export const SHORT_OF_TIME_MIN_SEC = 18;
 export const SHORT_OF_TIME_MAX_SEC = 20;
+
+// Player lives: a hit no longer ends the run immediately, it respawns the
+// player and decrements this until it reaches 0.
+export const STARTING_LIVES = 3;
+
+// A powerup spawns every 30s of level time (mirrors SPAWN_WAVE_SEC's cadence
+// style), skipped whenever one is already sitting on the map uncollected.
+export const POWERUP_SPAWN_INTERVAL_SEC = 30;
+
+// How long the invincibility/freeze effects last once picked up.
+export const INVINCIBILITY_DURATION_TICKS = 100; // 5s at SIM_TICK_MS=50
+export const FREEZE_DURATION_TICKS = 60; // 3s

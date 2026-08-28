@@ -1,7 +1,10 @@
 import {
     BOOM_DURATION_TICKS,
+    FREEZE_DURATION_TICKS,
     GAME_OVER_DELAY_TICKS,
+    INVINCIBILITY_DURATION_TICKS,
     SIM_TICK_MS,
+    STARTING_LIVES,
     TANK_MOVE_TICKS,
     TIME_LIMIT_SEC,
     TREASURE_REVEAL_TICKS,
@@ -10,10 +13,11 @@ import {
 import { LEVELS } from './maps/registry';
 import { setupTiles } from './map/mapLoader';
 import { getCurrentPosition } from './systems/movement.system';
-import { inBounds, isImpassable, isOccupiedByTank, tileAt, toGridCell } from './systems/collision.system';
+import { cellsEqual, inBounds, isImpassable, tileAt, toGridCell } from './systems/collision.system';
 import { tickEnemyTank } from './systems/ai.system';
 import { checkBulletAtSpawn, createBullet, tickBullet } from './systems/bullets.system';
 import type { BulletTickOutcome } from './systems/bullets.system';
+import { findRandomPassablePosition, pickPowerupKind, shouldSpawnPowerup } from './systems/powerup.system';
 import { getSpawnWave, shouldSpawnWave } from './systems/spawn.system';
 import { isAllTanksCleared, isShortOfTime, isTimeExpired, resolveEagleHit } from './systems/win-lose.system';
 import { EngineEventBus } from './events';
@@ -26,6 +30,7 @@ import type {
     LevelDefinition,
     PlayerEntity,
     Position,
+    PowerupEntity,
     TankEntity,
     TileGrid,
 } from './types';
@@ -43,6 +48,7 @@ const makeInitialPlayer = (level: LevelDefinition): PlayerEntity => ({
     hidden: false,
     inputDirection: '',
     moveTickAccumulator: 0,
+    invincible: false,
 });
 
 /**
@@ -66,13 +72,17 @@ export class Engine {
     private tiles: TileGrid;
     private tanks: TankEntity[] = [];
     private bullets: BulletEntity[] = [];
+    private powerups: PowerupEntity[] = [];
     private player: PlayerEntity;
     private status: GameStatus = 'idle';
     private timeRemainingSec = TIME_LIMIT_SEC;
+    private lives = STARTING_LIVES;
+    private tanksFrozenUntilTick = 0;
     private simTick = 0;
     private shortOfTimeEmitted = false;
     private delayedActions: DelayedAction[] = [];
     private tankKeySeq = 0;
+    private powerupKeySeq = 0;
     private readonly eventBus = new EngineEventBus();
 
     constructor() {
@@ -95,10 +105,12 @@ export class Engine {
             tiles: this.tiles,
             tanks: this.tanks,
             bullets: this.bullets,
+            powerups: this.powerups,
             player: this.player,
             timeRemainingSec: this.timeRemainingSec,
             levelIndex: this.levelIndex,
             totalLevels: LEVELS.length,
+            lives: this.lives,
         };
     }
 
@@ -111,28 +123,38 @@ export class Engine {
         this.eagleTargetPositions = gridCellsToPositions(this.level.flagPosition);
     }
 
+    /** Deliberately does NOT touch `lives` — shared by `advanceLevel()`, which
+     * must carry the player's remaining lives over into the next level, as
+     * well as `start()`, which resets lives itself beforehand. */
     private resetState(levelIndex: number): void {
         this.loadLevel(levelIndex);
         this.tanks = [];
         this.bullets = [];
+        this.powerups = [];
         this.player = makeInitialPlayer(this.level);
         this.timeRemainingSec = TIME_LIMIT_SEC;
+        this.tanksFrozenUntilTick = 0;
         this.simTick = 0;
         this.shortOfTimeEmitted = false;
         this.delayedActions = [];
     }
 
     /** Shared by `start()` and `advanceLevel()` — both begin play on whatever
-     * level `resetState()` just loaded. */
+     * level `resetState()` just loaded. Re-broadcasting `livesChanged` here
+     * (rather than only when a hit actually changes it) keeps the HUD's
+     * lives count correct across a level advance too, since `gameStarted`'s
+     * listener-side HUD reset doesn't know lives persisted rather than reset. */
     private beginLevel(): void {
         this.status = 'playing';
         this.emit({ type: 'gameStarted' });
         this.emit({ type: 'levelChanged', levelIndex: this.levelIndex, totalLevels: LEVELS.length });
+        this.emit({ type: 'livesChanged', lives: this.lives });
         this.spawnWave();
     }
 
     /** Starts a fresh game (or restarts after a win/loss) — always from the first level. */
     start(): void {
+        this.lives = STARTING_LIVES;
         this.resetState(0);
         this.beginLevel();
     }
@@ -140,6 +162,7 @@ export class Engine {
     /** Ports the DOM version's `gameInit()` (GameResult's restart button): back
      * to the menu, not straight back into a new game. */
     returnToMenu(): void {
+        this.lives = STARTING_LIVES;
         this.resetState(0);
         this.status = 'idle';
         this.emit({ type: 'gameReset' });
@@ -281,7 +304,22 @@ export class Engine {
             return;
         }
         if (isImpassable(tile)) return;
-        if (isOccupiedByTank(this.tanks, nextPos)) return;
+
+        const collidingTank = this.tanks.find(t => cellsEqual(t.position, nextPos));
+        if (collidingTank) {
+            // Invincibility turns "blocked by a tank" into "destroy it and
+            // drive through" — otherwise this is the same block as a wall.
+            if (!this.player.invincible) return;
+            this.destroyTank(collidingTank.keyIndex, collidingTank.position);
+        }
+
+        const powerupIndex = this.powerups.findIndex(p => cellsEqual(p.position, nextPos));
+        if (powerupIndex !== -1) {
+            const [powerup] = this.powerups.splice(powerupIndex, 1);
+            this.applyPowerup(powerup.kind);
+            this.emit({ type: 'powerupCollected', kind: powerup.kind });
+        }
+
         this.player.position = nextPos;
     }
 
@@ -295,16 +333,63 @@ export class Engine {
     }
 
     private hitPlayer(): void {
-        if (this.player.hidden) return;
+        if (this.player.hidden || this.player.invincible) return;
         this.player.hidden = true;
         this.releaseBoom(this.player.position);
         this.emit({ type: 'playerHit' });
-        this.scheduleAfterTicks(GAME_OVER_DELAY_TICKS, () => this.loseGame());
+
+        this.lives--;
+        this.emit({ type: 'livesChanged', lives: this.lives });
+        if (this.lives <= 0) {
+            this.scheduleAfterTicks(GAME_OVER_DELAY_TICKS, () => this.loseGame());
+        } else {
+            this.scheduleAfterTicks(GAME_OVER_DELAY_TICKS, () => this.respawnPlayer());
+        }
+    }
+
+    private respawnPlayer(): void {
+        if (this.status !== 'playing') return;
+        this.player = makeInitialPlayer(this.level);
+        this.emit({ type: 'playerRespawned' });
+    }
+
+    // ---- powerups ----
+
+    private nextPowerupKey(): string {
+        return `powerup_${Date.now()}_${this.powerupKeySeq++}`;
+    }
+
+    private spawnPowerup(): void {
+        const occupied = [this.player.position, ...this.tanks.map(t => t.position)];
+        const position = findRandomPassablePosition(this.tiles, occupied);
+        if (!position) return; // no free cell right now — try again next interval
+
+        const powerup: PowerupEntity = { keyIndex: this.nextPowerupKey(), position, kind: pickPowerupKind() };
+        this.powerups.push(powerup);
+        this.emit({ type: 'powerupSpawned', keyIndex: powerup.keyIndex, position, kind: powerup.kind });
+    }
+
+    /** Applies a picked-up powerup's effect. Both effects reuse the
+     * `delayedActions` mechanism already proven for the eagle-hit/treasure
+     * timers, so they correctly freeze in place across a pause for free. */
+    private applyPowerup(kind: PowerupEntity['kind']): void {
+        switch (kind) {
+            case 'invincibility':
+                this.player.invincible = true;
+                this.scheduleAfterTicks(INVINCIBILITY_DURATION_TICKS, () => {
+                    this.player.invincible = false;
+                });
+                break;
+            case 'freeze':
+                this.tanksFrozenUntilTick = this.simTick + FREEZE_DURATION_TICKS;
+                break;
+        }
     }
 
     // ---- tanks ----
 
     private tickTanks(): void {
+        if (this.simTick < this.tanksFrozenUntilTick) return;
         for (const tank of this.tanks) {
             tank.moveTickAccumulator++;
             if (tank.moveTickAccumulator < TANK_MOVE_TICKS) continue;
@@ -413,6 +498,7 @@ export class Engine {
         }
 
         if (shouldSpawnWave(this.timeRemainingSec)) this.spawnWave();
+        if (this.powerups.length === 0 && shouldSpawnPowerup(this.timeRemainingSec)) this.spawnPowerup();
     }
 
     // ---- win/lose ----

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Engine } from './Engine';
+import { FREEZE_DURATION_TICKS, GAME_OVER_DELAY_TICKS, POWERUP_SPAWN_INTERVAL_SEC, SIM_TICK_MS, STARTING_LIVES } from './constants';
 import type { EngineEvent } from './events';
 
 afterEach(() => {
@@ -24,7 +25,7 @@ describe('start', () => {
         engine.on(e => events.push(e));
         engine.start();
         expect(events.map(e => e.type)).toEqual([
-            'gameStarted', 'levelChanged', 'tankSpawned', 'tankSpawned', 'tankSpawned',
+            'gameStarted', 'levelChanged', 'livesChanged', 'tankSpawned', 'tankSpawned', 'tankSpawned',
         ]);
     });
 
@@ -180,6 +181,149 @@ describe('player-tank collision', () => {
         engine.setPlayerInputDirection('WEST');
 
         expect(engine.getSnapshot().player.position).toEqual([280, 460]); // blocked, same as walking into a wall
+    });
+});
+
+describe('powerups', () => {
+    it('picking up invincibility sets player.invincible and removes the powerup from the map', () => {
+        const engine = new Engine();
+        engine.start();
+        engine.getSnapshot().powerups.push({ keyIndex: 'p1', position: [260, 460], kind: 'invincibility' });
+
+        const events: EngineEvent[] = [];
+        engine.on(e => events.push(e));
+        engine.setPlayerInputDirection('WEST'); // one cell west of [280,460] — grass, per the collision test above
+
+        const snap = engine.getSnapshot();
+        expect(snap.player.invincible).toBe(true);
+        expect(snap.powerups).toHaveLength(0);
+        expect(events.map(e => e.type)).toContain('powerupCollected');
+    });
+
+    it('an invincible player destroys a tank it drives into, instead of being blocked by it', () => {
+        const engine = new Engine();
+        engine.start();
+        const snap = engine.getSnapshot();
+        snap.tiles[23][13] = 0; // defensively grass, same as the plain player-tank-collision test
+        snap.tanks.length = 0;
+        snap.tanks.push({ keyIndex: 999, position: [260, 460], direction: 'SOUTH', fireTick: 0, moveTickAccumulator: 0 });
+        snap.player.invincible = true;
+
+        engine.setPlayerInputDirection('WEST');
+
+        const after = engine.getSnapshot();
+        expect(after.tanks).toHaveLength(0);
+        expect(after.player.position).toEqual([260, 460]); // drove through, not blocked
+    });
+
+    it('freeze stops enemy tanks from moving while active', () => {
+        const engine = new Engine();
+        engine.start();
+        engine.getSnapshot().powerups.push({ keyIndex: 'p1', position: [260, 460], kind: 'freeze' });
+        engine.setPlayerInputDirection('WEST');
+
+        const before = engine.getSnapshot().tanks.map(t => t.position);
+        for (let i = 0; i < FREEZE_DURATION_TICKS - 1; i++) engine.tick();
+        const during = engine.getSnapshot().tanks.map(t => t.position);
+        expect(during).toEqual(before);
+    });
+
+    // The player never moves in these two, so keep it alive by clearing the
+    // enemy tanks/bullets each tick — otherwise the spawn wave guns down the
+    // stationary player and burns all 3 lives long before the 30s spawn mark.
+    const tickKeepingPlayerAlive = (engine: Engine, ticks: number): void => {
+        for (let i = 0; i < ticks; i++) {
+            const snap = engine.getSnapshot();
+            snap.tanks.length = 0;
+            snap.bullets.length = 0;
+            engine.tick();
+        }
+    };
+
+    it('spawns a powerup after POWERUP_SPAWN_INTERVAL_SEC seconds of play, if none exists yet', () => {
+        const engine = new Engine();
+        engine.start();
+        expect(engine.getSnapshot().powerups).toHaveLength(0);
+
+        const ticksPerSecond = 1000 / SIM_TICK_MS;
+        tickKeepingPlayerAlive(engine, POWERUP_SPAWN_INTERVAL_SEC * ticksPerSecond);
+
+        expect(engine.getSnapshot().powerups.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('does not spawn a second powerup while one is already on the map', () => {
+        const engine = new Engine();
+        engine.start();
+        const ticksPerSecond = 1000 / SIM_TICK_MS;
+        tickKeepingPlayerAlive(engine, POWERUP_SPAWN_INTERVAL_SEC * ticksPerSecond * 2); // 2 intervals' worth
+        expect(engine.getSnapshot().powerups).toHaveLength(1);
+    });
+});
+
+describe('lives and respawn', () => {
+    it('a hit decrements lives and respawns the player instead of ending the game, while lives remain', () => {
+        const engine = new Engine();
+        engine.start();
+        expect(engine.getSnapshot().lives).toBe(STARTING_LIVES);
+
+        engine.getSnapshot().bullets.push({ keyIndex: 'eb1', position: [280, 440], direction: 'SOUTH', isPlayerBullet: false });
+        engine.tick(); // the bullet advances onto the player's cell -> hitPlayer()
+
+        let snap = engine.getSnapshot();
+        expect(snap.player.hidden).toBe(true);
+        expect(snap.lives).toBe(STARTING_LIVES - 1);
+        expect(snap.status).toBe('playing'); // not game over yet
+
+        for (let i = 0; i < GAME_OVER_DELAY_TICKS; i++) engine.tick();
+        snap = engine.getSnapshot();
+        expect(snap.status).toBe('playing'); // still playing: respawned, not lost
+        expect(snap.player.hidden).toBe(false);
+        expect(snap.player.position).toEqual([280, 460]); // back at the level's start position
+    });
+
+    it('does not hit an invincible player at all', () => {
+        const engine = new Engine();
+        engine.start();
+        engine.getSnapshot().player.invincible = true;
+        engine.getSnapshot().bullets.push({ keyIndex: 'eb1', position: [280, 440], direction: 'SOUTH', isPlayerBullet: false });
+        engine.tick();
+
+        const snap = engine.getSnapshot();
+        expect(snap.player.hidden).toBe(false);
+        expect(snap.lives).toBe(STARTING_LIVES);
+    });
+
+    it('loses the game once lives reach 0', () => {
+        const engine = new Engine();
+        engine.start();
+
+        for (let hit = 0; hit < STARTING_LIVES; hit++) {
+            engine.getSnapshot().bullets.push({
+                keyIndex: `eb${hit}`, position: [280, 440], direction: 'SOUTH', isPlayerBullet: false,
+            });
+            engine.tick();
+            for (let i = 0; i < GAME_OVER_DELAY_TICKS; i++) engine.tick();
+        }
+
+        expect(engine.getSnapshot().status).toBe('lost');
+        expect(engine.getSnapshot().lives).toBe(0);
+    });
+
+    it('lives persist across advanceLevel, but reset to STARTING_LIVES on a fresh start()', () => {
+        const engine = new Engine();
+        engine.start();
+        engine.getSnapshot().bullets.push({ keyIndex: 'eb1', position: [280, 440], direction: 'SOUTH', isPlayerBullet: false });
+        engine.tick();
+        for (let i = 0; i < GAME_OVER_DELAY_TICKS; i++) engine.tick();
+        expect(engine.getSnapshot().lives).toBe(STARTING_LIVES - 1);
+
+        engine.getSnapshot().tiles[23][15] = 4;
+        engine.setPlayerInputDirection('EAST'); // win
+        engine.advanceLevel();
+        expect(engine.getSnapshot().lives).toBe(STARTING_LIVES - 1); // carried over, not reset
+
+        engine.start(); // a brand new game
+        expect(engine.getSnapshot().lives).toBe(STARTING_LIVES);
     });
 });
 

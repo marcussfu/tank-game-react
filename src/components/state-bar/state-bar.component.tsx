@@ -5,6 +5,7 @@ import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 
 import Timing from '../../components/timing/timing.component';
+import LivesDisplay from '../../components/lives-display/lives-display.component';
 import SettingDialog from '../../components/setting-dialog/setting-dialog.component';
 
 import './state-bar.styles.scss';
@@ -32,6 +33,7 @@ const StateBar = ({engine}: StateBarProps) => {
                 </IconButton>
             )}
             <Timing />
+            {isInGame && <LivesDisplay />}
             <SettingDialog />
         </div>
     )

@@ -66,6 +66,7 @@ const makePlayer = (overrides: Partial<PlayerEntity> = {}): PlayerEntity => ({
     hidden: false,
     inputDirection: '',
     moveTickAccumulator: 0,
+    invincible: false,
     ...overrides,
 });
 

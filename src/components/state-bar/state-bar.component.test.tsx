@@ -16,6 +16,16 @@ describe('StateBar', () => {
         expect(screen.getByLabelText('pause')).toBeInTheDocument();
     });
 
+    it('does not show the lives count in menu status', () => {
+        renderWithStore(<StateBar engine={makeFakeEngine()} />, { world: { status: 'menu', shortOfTime: false } });
+        expect(screen.queryByText('×3')).not.toBeInTheDocument();
+    });
+
+    it('shows the lives count while playing', () => {
+        renderWithStore(<StateBar engine={makeFakeEngine()} />, { world: { status: 'playing', shortOfTime: false } });
+        expect(screen.getByText('×3')).toBeInTheDocument();
+    });
+
     it('shows a resume button while paused', () => {
         renderWithStore(<StateBar engine={makeFakeEngine()} />, { world: { status: 'paused', shortOfTime: false } });
         expect(screen.getByLabelText('resume')).toBeInTheDocument();

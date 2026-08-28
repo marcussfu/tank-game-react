@@ -10,6 +10,7 @@ const hiddenPlayer: PlayerEntity = {
     hidden: true,
     inputDirection: '',
     moveTickAccumulator: 0,
+    invincible: false,
 };
 
 const makeBullet = (overrides: Partial<BulletEntity> = {}): BulletEntity => ({
