@@ -33,5 +33,9 @@ export const tileAt = (tiles: TileGrid, pos: Position): number => {
 export const isOccupiedByTank = (tanks: TankEntity[], pos: Position, excludeKeyIndex?: number): boolean =>
     tanks.some(t => t.keyIndex !== excludeKeyIndex && cellsEqual(t.position, pos));
 
-export const isOccupiedByPlayer = (player: PlayerEntity, pos: Position): boolean =>
-    !player.hidden && cellsEqual(player.position, pos);
+/** True if any visible player occupies `pos` — an enemy tank treats a player's
+ * cell as impassable, same as a wall. Takes the whole player list so 2-player
+ * co-op works; `excludeId` lets a player check the cell it's moving into
+ * without matching itself. */
+export const isOccupiedByPlayers = (players: PlayerEntity[], pos: Position, excludeId?: number): boolean =>
+    players.some(p => p.id !== excludeId && !p.hidden && cellsEqual(p.position, pos));

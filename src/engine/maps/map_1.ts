@@ -35,5 +35,8 @@ export const map1: LevelDefinition = {
         { position: [780, 460], direction: 'NORTH' },
         { position: [740, 0], direction: 'WEST' },
     ],
-    playerStart: { position: [280, 460], direction: 'NORTH' },
+    playerStarts: [
+        { position: [280, 460], direction: 'NORTH' },
+        { position: [200, 460], direction: 'NORTH' },
+    ],
 };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isImpassable, inBounds, cellsEqual, tileAt, isOccupiedByTank, isOccupiedByPlayer } from './collision.system';
+import { isImpassable, inBounds, cellsEqual, tileAt, isOccupiedByTank, isOccupiedByPlayers } from './collision.system';
 import { MAP_WIDTH, MAP_HEIGHT } from '../constants';
 import type { PlayerEntity, TankEntity } from '../types';
 
@@ -61,12 +61,16 @@ const makeTank = (overrides: Partial<TankEntity> = {}): TankEntity => ({
 });
 
 const makePlayer = (overrides: Partial<PlayerEntity> = {}): PlayerEntity => ({
+    id: 0,
     position: [280, 460],
     direction: 'NORTH',
     hidden: false,
     inputDirection: '',
     moveTickAccumulator: 0,
     invincible: false,
+    lives: 3,
+    active: true,
+    spawn: { position: [280, 460], direction: 'NORTH' },
     ...overrides,
 });
 
@@ -85,12 +89,21 @@ describe('isOccupiedByTank', () => {
     });
 });
 
-describe('isOccupiedByPlayer', () => {
-    it('detects the player at the given cell', () => {
-        expect(isOccupiedByPlayer(makePlayer({ position: [100, 100] }), [100, 100])).toBe(true);
+describe('isOccupiedByPlayers', () => {
+    it('detects a player at the given cell', () => {
+        expect(isOccupiedByPlayers([makePlayer({ position: [100, 100] })], [100, 100])).toBe(true);
     });
 
     it('ignores a hidden player (already destroyed, no longer physically present)', () => {
-        expect(isOccupiedByPlayer(makePlayer({ position: [100, 100], hidden: true }), [100, 100])).toBe(false);
+        expect(isOccupiedByPlayers([makePlayer({ position: [100, 100], hidden: true })], [100, 100])).toBe(false);
+    });
+
+    it('detects the second player in a 2-player list', () => {
+        const players = [makePlayer({ id: 0, position: [0, 0] }), makePlayer({ id: 1, position: [100, 100] })];
+        expect(isOccupiedByPlayers(players, [100, 100])).toBe(true);
+    });
+
+    it('excludes the player checking its own cell via excludeId', () => {
+        expect(isOccupiedByPlayers([makePlayer({ id: 1, position: [100, 100] })], [100, 100], 1)).toBe(false);
     });
 });

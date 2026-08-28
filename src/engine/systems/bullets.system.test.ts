@@ -5,13 +5,21 @@ import type { BulletEntity, PlayerEntity, TankEntity, TileGrid } from '../types'
 const openTiles: TileGrid = Array.from({ length: 24 }, () => Array(40).fill(0));
 
 const hiddenPlayer: PlayerEntity = {
+    id: 0,
     position: [0, 0],
     direction: '',
     hidden: true,
     inputDirection: '',
     moveTickAccumulator: 0,
     invincible: false,
+    lives: 3,
+    active: true,
+    spawn: { position: [0, 0], direction: 'NORTH' },
 };
+
+// Most tests just need "no player standing here" — an empty list says that
+// without a stray hidden player to reason about.
+const noPlayers: PlayerEntity[] = [];
 
 const makeBullet = (overrides: Partial<BulletEntity> = {}): BulletEntity => ({
     keyIndex: 'b1',
@@ -32,12 +40,12 @@ describe('createBullet', () => {
 describe('tickBullet', () => {
     it('expires when the next cell is out of bounds', () => {
         const bullet = makeBullet({ position: [0, 0], direction: 'NORTH' });
-        expect(tickBullet(bullet, openTiles, [], hiddenPlayer)).toEqual({ kind: 'expired' });
+        expect(tickBullet(bullet, openTiles, [], noPlayers)).toEqual({ kind: 'expired' });
     });
 
     it('advances one cell over passable terrain', () => {
         const bullet = makeBullet({ position: [100, 100], direction: 'SOUTH' });
-        expect(tickBullet(bullet, openTiles, [], hiddenPlayer)).toEqual({
+        expect(tickBullet(bullet, openTiles, [], noPlayers)).toEqual({
             kind: 'advance',
             position: [100, 120],
         });
@@ -47,28 +55,28 @@ describe('tickBullet', () => {
         const tiles = openTiles.map(row => row.slice());
         tiles[6][5] = 6; // rock directly south of (100,100)
         const bullet = makeBullet({ position: [100, 100], direction: 'SOUTH' });
-        expect(tickBullet(bullet, tiles, [], hiddenPlayer)).toEqual({ kind: 'expired' });
+        expect(tickBullet(bullet, tiles, [], noPlayers)).toEqual({ kind: 'expired' });
     });
 
     it('reports hitWall on a wall tile', () => {
         const tiles = openTiles.map(row => row.slice());
         tiles[6][5] = 5;
         const bullet = makeBullet({ position: [100, 100], direction: 'SOUTH' });
-        expect(tickBullet(bullet, tiles, [], hiddenPlayer)).toEqual({ kind: 'hitWall', position: [100, 120] });
+        expect(tickBullet(bullet, tiles, [], noPlayers)).toEqual({ kind: 'hitWall', position: [100, 120] });
     });
 
     it('reports hitTreasure on the treasure tile', () => {
         const tiles = openTiles.map(row => row.slice());
         tiles[6][5] = 12;
         const bullet = makeBullet({ position: [100, 100], direction: 'SOUTH' });
-        expect(tickBullet(bullet, tiles, [], hiddenPlayer)).toEqual({ kind: 'hitTreasure', position: [100, 120] });
+        expect(tickBullet(bullet, tiles, [], noPlayers)).toEqual({ kind: 'hitTreasure', position: [100, 120] });
     });
 
     it('reports hitEagle on any of the four eagle sub-tiles', () => {
         const tiles = openTiles.map(row => row.slice());
         tiles[6][5] = 10.4;
         const bullet = makeBullet({ position: [100, 100], direction: 'SOUTH' });
-        expect(tickBullet(bullet, tiles, [], hiddenPlayer)).toEqual({ kind: 'hitEagle', position: [100, 120] });
+        expect(tickBullet(bullet, tiles, [], noPlayers)).toEqual({ kind: 'hitEagle', position: [100, 120] });
     });
 
     it('reports hitTank when a player bullet reaches a tank cell, regardless of terrain', () => {
@@ -76,7 +84,7 @@ describe('tickBullet', () => {
             { keyIndex: 42, position: [100, 120], direction: 'NORTH', fireTick: 0, moveTickAccumulator: 0 },
         ];
         const bullet = makeBullet({ position: [100, 100], direction: 'SOUTH', isPlayerBullet: true });
-        expect(tickBullet(bullet, openTiles, tanks, hiddenPlayer)).toEqual({
+        expect(tickBullet(bullet, openTiles, tanks, noPlayers)).toEqual({
             kind: 'hitTank',
             position: [100, 120],
             tankKeyIndex: 42,
@@ -88,7 +96,7 @@ describe('tickBullet', () => {
             { keyIndex: 42, position: [100, 120], direction: 'NORTH', fireTick: 0, moveTickAccumulator: 0 },
         ];
         const bullet = makeBullet({ position: [100, 100], direction: 'SOUTH', isPlayerBullet: false });
-        expect(tickBullet(bullet, openTiles, tanks, hiddenPlayer)).toEqual({
+        expect(tickBullet(bullet, openTiles, tanks, noPlayers)).toEqual({
             kind: 'advance',
             position: [100, 120],
         });
@@ -97,19 +105,26 @@ describe('tickBullet', () => {
     it('reports hitPlayer when an enemy bullet reaches the visible player cell', () => {
         const player: PlayerEntity = { ...hiddenPlayer, position: [100, 120], hidden: false };
         const bullet = makeBullet({ position: [100, 100], direction: 'SOUTH', isPlayerBullet: false });
-        expect(tickBullet(bullet, openTiles, [], player)).toEqual({ kind: 'hitPlayer', position: [100, 120] });
+        expect(tickBullet(bullet, openTiles, [], [player])).toEqual({ kind: 'hitPlayer', position: [100, 120], playerId: 0 });
+    });
+
+    it('reports hitPlayer with the id of whichever player is standing there (2-player)', () => {
+        const p1: PlayerEntity = { ...hiddenPlayer, id: 0, position: [0, 0], hidden: false };
+        const p2: PlayerEntity = { ...hiddenPlayer, id: 1, position: [100, 120], hidden: false };
+        const bullet = makeBullet({ position: [100, 100], direction: 'SOUTH', isPlayerBullet: false });
+        expect(tickBullet(bullet, openTiles, [], [p1, p2])).toEqual({ kind: 'hitPlayer', position: [100, 120], playerId: 1 });
     });
 
     it('ignores the player cell while the player is hidden', () => {
         const player: PlayerEntity = { ...hiddenPlayer, position: [100, 120], hidden: true };
         const bullet = makeBullet({ position: [100, 100], direction: 'SOUTH', isPlayerBullet: false });
-        expect(tickBullet(bullet, openTiles, [], player)).toEqual({ kind: 'advance', position: [100, 120] });
+        expect(tickBullet(bullet, openTiles, [], [player])).toEqual({ kind: 'advance', position: [100, 120] });
     });
 
     it('does not check the player for a player bullet', () => {
         const player: PlayerEntity = { ...hiddenPlayer, position: [100, 120], hidden: false };
         const bullet = makeBullet({ position: [100, 100], direction: 'SOUTH', isPlayerBullet: true });
-        expect(tickBullet(bullet, openTiles, [], player)).toEqual({ kind: 'advance', position: [100, 120] });
+        expect(tickBullet(bullet, openTiles, [], [player])).toEqual({ kind: 'advance', position: [100, 120] });
     });
 });
 
@@ -126,7 +141,7 @@ describe('checkBulletAtSpawn', () => {
         const tiles = openTiles.map(row => row.slice());
         tiles[5][5] = 5; // wall the bullet spawns directly inside
         const bullet = makeBullet({ position: [100, 100], direction: 'SOUTH' });
-        expect(checkBulletAtSpawn(bullet, tiles, [], hiddenPlayer)).toEqual({
+        expect(checkBulletAtSpawn(bullet, tiles, [], noPlayers)).toEqual({
             kind: 'hitWall',
             position: [100, 100],
         });
@@ -137,7 +152,7 @@ describe('checkBulletAtSpawn', () => {
             { keyIndex: 1, position: [100, 100], direction: 'NORTH', fireTick: 0, moveTickAccumulator: 0 },
         ];
         const bullet = makeBullet({ position: [100, 100], direction: 'SOUTH', isPlayerBullet: true });
-        expect(checkBulletAtSpawn(bullet, openTiles, tanks, hiddenPlayer)).toEqual({
+        expect(checkBulletAtSpawn(bullet, openTiles, tanks, noPlayers)).toEqual({
             kind: 'hitTank',
             position: [100, 100],
             tankKeyIndex: 1,
@@ -146,7 +161,7 @@ describe('checkBulletAtSpawn', () => {
 
     it('reports advance (no-op) for a bullet spawned over open ground', () => {
         const bullet = makeBullet({ position: [100, 100], direction: 'SOUTH' });
-        expect(checkBulletAtSpawn(bullet, openTiles, [], hiddenPlayer)).toEqual({
+        expect(checkBulletAtSpawn(bullet, openTiles, [], noPlayers)).toEqual({
             kind: 'advance',
             position: [100, 100],
         });

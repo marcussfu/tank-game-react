@@ -20,7 +20,7 @@ export type BulletTickOutcome =
     | { kind: 'expired' }
     | { kind: 'advance'; position: Position }
     | { kind: 'hitTank'; position: Position; tankKeyIndex: number }
-    | { kind: 'hitPlayer'; position: Position }
+    | { kind: 'hitPlayer'; position: Position; playerId: number }
     | { kind: 'hitWall'; position: Position }
     | { kind: 'hitEagle'; position: Position }
     | { kind: 'hitTreasure'; position: Position };
@@ -45,15 +45,17 @@ const classifyCell = (
     isPlayerBullet: boolean,
     tiles: TileGrid,
     tanks: TankEntity[],
-    player: PlayerEntity,
+    players: PlayerEntity[],
 ): BulletTickOutcome => {
     if (!inBounds(pos)) return { kind: 'expired' };
 
     if (isPlayerBullet) {
         const tank = tanks.find(t => t.position[0] === pos[0] && t.position[1] === pos[1]);
         if (tank) return { kind: 'hitTank', position: pos, tankKeyIndex: tank.keyIndex };
-    } else if (!player.hidden && player.position[0] === pos[0] && player.position[1] === pos[1]) {
-        return { kind: 'hitPlayer', position: pos };
+        // Player bullets never hit players — co-op friendly fire is off.
+    } else {
+        const hit = players.find(p => !p.hidden && p.position[0] === pos[0] && p.position[1] === pos[1]);
+        if (hit) return { kind: 'hitPlayer', position: pos, playerId: hit.id };
     }
 
     const tile = tileAt(tiles, pos);
@@ -70,10 +72,10 @@ export const tickBullet = (
     bullet: BulletEntity,
     tiles: TileGrid,
     tanks: TankEntity[],
-    player: PlayerEntity,
+    players: PlayerEntity[],
 ): BulletTickOutcome => {
     const nextPos = getCurrentPosition(bullet.direction, bullet.position);
-    return classifyCell(nextPos, bullet.isPlayerBullet, tiles, tanks, player);
+    return classifyCell(nextPos, bullet.isPlayerBullet, tiles, tanks, players);
 };
 
 /**
@@ -95,5 +97,5 @@ export const checkBulletAtSpawn = (
     bullet: BulletEntity,
     tiles: TileGrid,
     tanks: TankEntity[],
-    player: PlayerEntity,
-): BulletTickOutcome => classifyCell(bullet.position, bullet.isPlayerBullet, tiles, tanks, player);
+    players: PlayerEntity[],
+): BulletTickOutcome => classifyCell(bullet.position, bullet.isPlayerBullet, tiles, tanks, players);

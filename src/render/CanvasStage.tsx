@@ -13,16 +13,19 @@ import { useAppSelector } from '../store/hooks';
 // hundreds of queued ticks trying to run synchronously (see plan section 3).
 const MAX_CATCHUP_TICKS = 10;
 
-const KEY_TO_DIRECTION: Record<string, Direction> = {
+const ARROW_KEYS: Record<string, Direction> = {
     ArrowUp: 'NORTH',
-    KeyW: 'NORTH',
     ArrowDown: 'SOUTH',
-    KeyS: 'SOUTH',
     ArrowLeft: 'WEST',
-    KeyA: 'WEST',
     ArrowRight: 'EAST',
+};
+const WASD_KEYS: Record<string, Direction> = {
+    KeyW: 'NORTH',
+    KeyS: 'SOUTH',
+    KeyA: 'WEST',
     KeyD: 'EAST',
 };
+const P2_FIRE_KEYS = new Set(['ShiftLeft', 'KeyF']);
 
 interface CanvasStageProps {
     engine: Engine;
@@ -49,7 +52,14 @@ const CanvasStage = ({ engine }: CanvasStageProps) => {
         let rafId = 0;
         let lastTime = performance.now();
         let accumulator = 0;
-        const heldDirections = new Set<Direction>();
+
+        // In a solo game WASD is a second alias for player 1 (unchanged
+        // behaviour); in local co-op it drives player 2 instead, and the
+        // arrow keys are player 1 only.
+        const twoPlayer = engine.getSnapshot().players.length > 1;
+        const p1Keys: Record<string, Direction> = twoPlayer ? ARROW_KEYS : { ...ARROW_KEYS, ...WASD_KEYS };
+        const p2Keys: Record<string, Direction> = twoPlayer ? WASD_KEYS : {};
+        const heldDirections: [Set<Direction>, Set<Direction>] = [new Set(), new Set()];
 
         const redrawMap = () => {
             const ctx = mapCanvasRef.current?.getContext('2d');
@@ -64,27 +74,33 @@ const CanvasStage = ({ engine }: CanvasStageProps) => {
             if (!disposed) redrawMap();
         });
 
-        const currentHeldDirection = (): Direction | '' => {
-            for (const dir of heldDirections) return dir;
+        const currentHeldDirection = (playerId: number): Direction | '' => {
+            for (const dir of heldDirections[playerId]) return dir;
             return '';
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            const dir = KEY_TO_DIRECTION[e.code];
-            if (dir) {
-                heldDirections.add(dir);
-                engine.setPlayerInputDirection(currentHeldDirection());
+            if (p1Keys[e.code]) {
+                heldDirections[0].add(p1Keys[e.code]);
+                engine.setPlayerInputDirection(currentHeldDirection(0), 0);
+            } else if (p2Keys[e.code]) {
+                heldDirections[1].add(p2Keys[e.code]);
+                engine.setPlayerInputDirection(currentHeldDirection(1), 1);
             } else if (e.code === 'Space' || e.code === 'Enter') {
-                engine.firePlayerBullet();
+                engine.firePlayerBullet(0);
+            } else if (twoPlayer && P2_FIRE_KEYS.has(e.code)) {
+                engine.firePlayerBullet(1);
             } else if (e.code === 'Escape') {
                 engine.togglePause();
             }
         };
         const handleKeyUp = (e: KeyboardEvent) => {
-            const dir = KEY_TO_DIRECTION[e.code];
-            if (dir) {
-                heldDirections.delete(dir);
-                engine.setPlayerInputDirection(currentHeldDirection());
+            if (p1Keys[e.code]) {
+                heldDirections[0].delete(p1Keys[e.code]);
+                engine.setPlayerInputDirection(currentHeldDirection(0), 0);
+            } else if (p2Keys[e.code]) {
+                heldDirections[1].delete(p2Keys[e.code]);
+                engine.setPlayerInputDirection(currentHeldDirection(1), 1);
             }
         };
         window.addEventListener('keydown', handleKeyDown);

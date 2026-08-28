@@ -1,4 +1,4 @@
-import { inBounds, isImpassable, isOccupiedByPlayer, isOccupiedByTank, tileAt } from './collision.system';
+import { inBounds, isImpassable, isOccupiedByPlayers, isOccupiedByTank, tileAt } from './collision.system';
 import { getCurrentPosition } from './movement.system';
 import type { Direction, PlayerEntity, Position, TankEntity, TileGrid } from '../types';
 
@@ -32,7 +32,7 @@ export const findNextStep = (
     start: Position,
     targets: Position[],
     tanks: TankEntity[],
-    player: PlayerEntity,
+    players: PlayerEntity[],
     selfKeyIndex: number,
 ): Direction | null => {
     if (targets.length === 0) return null;
@@ -52,7 +52,7 @@ export const findNextStep = (
             if (targetKeys.has(key)) return step;
             if (isImpassable(tileAt(tiles, next))) continue;
             if (isOccupiedByTank(tanks, next, selfKeyIndex)) continue;
-            if (isOccupiedByPlayer(player, next)) continue;
+            if (isOccupiedByPlayers(players, next)) continue;
             visited.add(key);
             queue.push({ pos: next, firstStep: step });
         }

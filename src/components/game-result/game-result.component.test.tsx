@@ -12,8 +12,8 @@ describe('GameResult', () => {
 
     // On the last level, hud.levelIndex === totalLevels - 1, so a win has no
     // next level to advance to — the "final victory" case.
-    const lastLevelHud = { timeRemainingSec: 100, enemiesRemaining: 0, levelIndex: 1, totalLevels: 2, lives: 3 };
-    const firstLevelHud = { timeRemainingSec: 100, enemiesRemaining: 0, levelIndex: 0, totalLevels: 2, lives: 3 };
+    const lastLevelHud = { timeRemainingSec: 100, enemiesRemaining: 0, levelIndex: 1, totalLevels: 2, lives: 3, livesP2: null };
+    const firstLevelHud = { timeRemainingSec: 100, enemiesRemaining: 0, levelIndex: 0, totalLevels: 2, lives: 3, livesP2: null };
 
     it('shows YOU WIN in green when won on the last level', () => {
         renderWithStore(<GameResult engine={makeFakeEngine()} />, {

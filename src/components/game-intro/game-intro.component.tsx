@@ -12,11 +12,10 @@ const GameIntro = () => {
             <div className='col-md-4'>
                 <h4 className='pad-20'>Operation:</h4>
                 <ul>
-                    <li>move up: &uarr; </li>        
-                    <li>move down: &darr; </li>        
-                    <li>move left: &larr; </li>        
-                    <li>move right: &rarr; </li>
-                    <li>open fire: <strong>space key</strong> </li>
+                    <li>P1 move: &uarr; &darr; &larr; &rarr; </li>
+                    <li>P1 fire: <strong>space</strong> </li>
+                    <li>P2 move: <strong>W A S D</strong> </li>
+                    <li>P2 fire: <strong>left shift</strong> / F </li>
                 </ul>
             </div>
             <div className='col-md-4'>

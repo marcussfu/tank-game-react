@@ -50,7 +50,7 @@ export const engineBridge = (engine: Engine, dispatch: AppDispatch): (() => void
                 dispatch(setLevel({ levelIndex: event.levelIndex, totalLevels: event.totalLevels }));
                 break;
             case 'livesChanged':
-                dispatch(setLives(event.lives));
+                dispatch(setLives({ playerId: event.playerId, lives: event.lives }));
                 break;
             case 'tankSpawned':
                 enemiesRemaining += 1;

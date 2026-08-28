@@ -4,4 +4,10 @@
     // it doesn't render as default black on the dark game backdrop.
     color: #ffd700;
     margin: 0 8px;
+    display: flex;
+    gap: 10px;
+
+    .lives-p2 {
+        color: #3ad13a; // matches the green P2 marker drawn on the canvas
+    }
 }

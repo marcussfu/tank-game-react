@@ -39,8 +39,8 @@ const drawPowerup = (ctx: CanvasRenderingContext2D, powerup: PowerupEntity): voi
     ctx.restore();
 };
 
-/** A pulsing gold ring behind the player tank while `player.invincible` — the
- * only visual cue that a touched enemy tank will die instead of the player. */
+/** A gold ring behind a player tank while `invincible` — the only visual cue
+ * that a touched enemy tank will die instead of the player. */
 const drawInvincibilityRing = (ctx: CanvasRenderingContext2D, player: PlayerEntity): void => {
     const cx = player.position[0] + SPRITE_SIZE / 2;
     const cy = player.position[1] + SPRITE_SIZE / 2;
@@ -53,11 +53,22 @@ const drawInvincibilityRing = (ctx: CanvasRenderingContext2D, player: PlayerEnti
     ctx.restore();
 };
 
+// Player 2 has no separate tank sprite yet — outline its cell in green so the
+// two co-op tanks are tellable apart at a glance (composite-safe, unlike a
+// source-atop tint which would bleed onto everything else on the layer).
+const drawPlayerTwoMarker = (ctx: CanvasRenderingContext2D, player: PlayerEntity): void => {
+    ctx.save();
+    ctx.strokeStyle = '#3ad13a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(player.position[0] + 1, player.position[1] + 1, SPRITE_SIZE - 2, SPRITE_SIZE - 2);
+    ctx.restore();
+};
+
 export interface EntityLayerState {
     tanks: TankEntity[];
     bullets: BulletEntity[];
     powerups: PowerupEntity[];
-    player: PlayerEntity;
+    players: PlayerEntity[];
 }
 
 /** Draws the dynamic entity layer. Call every RAF frame (unlike drawMap) —
@@ -88,11 +99,13 @@ export const drawEntities = (
         }
     }
 
-    if (!state.player.hidden) {
-        if (state.player.invincible) drawInvincibilityRing(ctx, state.player);
-        const playerImage = getSprite('playerTank');
+    const playerImage = getSprite('playerTank');
+    for (const player of state.players) {
+        if (player.hidden) continue;
+        if (player.invincible) drawInvincibilityRing(ctx, player);
         if (playerImage) {
-            drawSprite(ctx, playerImage, state.player.position[0], state.player.position[1], directionToRotateDegree(state.player.direction));
+            drawSprite(ctx, playerImage, player.position[0], player.position[1], directionToRotateDegree(player.direction));
         }
+        if (player.id === 1) drawPlayerTwoMarker(ctx, player);
     }
 };

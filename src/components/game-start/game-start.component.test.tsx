@@ -11,16 +11,18 @@ describe('GameStart', () => {
         vi.restoreAllMocks();
     });
 
-    it('shows "2 PLAYERS" as an inert, non-clickable option labeled coming soon', async () => {
-        const user = userEvent.setup();
+    it('clicking 2 PLAYERS runs the transition sequence, then starts a 2-player game', () => {
+        vi.useFakeTimers();
         const engine = makeFakeEngine();
+        vi.spyOn(audioManager, 'playBg').mockImplementation(() => {});
         render(<GameStart engine={engine} />);
 
-        expect(screen.getByText(/coming soon/i)).toBeInTheDocument();
-        await user.click(screen.getByText(/2 PLAYERS/));
+        fireEvent.click(screen.getByText('2 PLAYERS'));
+        act(() => { vi.advanceTimersByTime(300); });
+        expect(screen.getByText(/STAGE/)).toBeInTheDocument();
 
-        expect(engine.start).not.toHaveBeenCalled();
-        expect(screen.queryByText('STAGE')).not.toBeInTheDocument();
+        act(() => { vi.advanceTimersByTime(5000); });
+        expect(engine.start).toHaveBeenCalledWith(2);
     });
 
     it('opens and closes the RULES dialog', async () => {
@@ -51,6 +53,7 @@ describe('GameStart', () => {
 
         act(() => { vi.advanceTimersByTime(4500); });
         expect(engine.start).toHaveBeenCalledTimes(1);
+        expect(engine.start).toHaveBeenCalledWith(1);
     });
 
     it('Enter starts the game, but is suppressed while the RULES dialog is open', () => {

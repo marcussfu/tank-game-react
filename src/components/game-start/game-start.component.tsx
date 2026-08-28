@@ -16,13 +16,13 @@ const GameStart = ({engine}: GameStartProps) => {
     const [isShowTransitionStage, setIsShowTransitionStage] = useState(false);
     const [showIntro, setShowIntro] = useState(false);
 
-    const gameStartAction = useCallback(() => {
+    const gameStartAction = useCallback((playerCount: number) => {
         setTimeout(() => {
             setIsShowTransitionStage(true);
             setTimeout(() => {
                 audioManager.playBg('start');
                 setTimeout(() => {
-                    engine.start();
+                    engine.start(playerCount);
                 }, 4500);
             }, 500);
         }, 300);
@@ -33,7 +33,7 @@ const GameStart = ({engine}: GameStartProps) => {
             if (e.key !== 'Enter' || showIntro) return;
             e.preventDefault();
             audioManager.playEffect('click');
-            gameStartAction();
+            gameStartAction(1);
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
@@ -46,10 +46,11 @@ const GameStart = ({engine}: GameStartProps) => {
                 <div className='game-start-button-container'>
                     <div className='game-start-button-content-container'>
                         <div className='select-item-tank1' />
-                        <Button id='game-start-btn-1' clickFunction={gameStartAction}>1 PLAYER</Button>
+                        <Button id='game-start-btn-1' clickFunction={() => gameStartAction(1)}>1 PLAYER</Button>
                     </div>
-                    <div className='game-start-button-content-container game-start-button-disabled'>
-                        <span id='game-start-btn-2'>2 PLAYERS <small>(COMING SOON)</small></span>
+                    <div className='game-start-button-content-container'>
+                        <div className='select-item-tank1' />
+                        <Button id='game-start-btn-2' clickFunction={() => gameStartAction(2)}>2 PLAYERS</Button>
                     </div>
                 </div>
                 <Button id='game-intro-btn' clickFunction={() => setShowIntro(true)}>RULES</Button>

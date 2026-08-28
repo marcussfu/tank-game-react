@@ -62,7 +62,7 @@ describe('AudioManager', () => {
         bus.emit({ type: 'bulletFired', keyIndex: 'b1', isPlayerBullet: true });
         bus.emit({ type: 'bulletFired', keyIndex: 'b2', isPlayerBullet: false });
         bus.emit({ type: 'tankDestroyed', keyIndex: 1, position: [0, 0] });
-        bus.emit({ type: 'playerHit' });
+        bus.emit({ type: 'playerHit', playerId: 0 });
         bus.emit({ type: 'starCollected' });
         bus.emit({ type: 'powerupCollected', kind: 'invincibility' });
         bus.emit({ type: 'mapChanged' }); // unrelated event, should not trigger anything

@@ -2,21 +2,35 @@ import { vi } from 'vitest';
 import type { Engine } from '../engine/Engine';
 import type { EngineSnapshot } from '../engine/types';
 
-const emptySnapshot = (): EngineSnapshot => ({
-    status: 'playing',
-    tiles: Array.from({ length: 24 }, () => Array(40).fill(0)),
-    tanks: [],
-    bullets: [],
-    powerups: [],
-    player: {
-        position: [280, 460], direction: 'NORTH', hidden: false, inputDirection: '', moveTickAccumulator: 0,
-        invincible: false,
-    },
-    timeRemainingSec: 180,
-    levelIndex: 0,
-    totalLevels: 1,
+const makePlayer = (id: number): EngineSnapshot['players'][number] => ({
+    id,
+    position: id === 0 ? [280, 460] : [200, 460],
+    direction: 'NORTH',
+    hidden: false,
+    inputDirection: '',
+    moveTickAccumulator: 0,
+    invincible: false,
     lives: 3,
+    active: true,
+    spawn: { position: id === 0 ? [280, 460] : [200, 460], direction: 'NORTH' },
 });
+
+const emptySnapshot = (): EngineSnapshot => {
+    const players = [makePlayer(0)];
+    return {
+        status: 'playing',
+        tiles: Array.from({ length: 24 }, () => Array(40).fill(0)),
+        tanks: [],
+        bullets: [],
+        powerups: [],
+        players,
+        player: players[0],
+        timeRemainingSec: 180,
+        levelIndex: 0,
+        totalLevels: 1,
+        lives: players[0].lives,
+    };
+};
 
 /** A test double for `Engine` — components only ever call a handful of its
  * methods, so this implements just those (typed loosely via `as Engine`

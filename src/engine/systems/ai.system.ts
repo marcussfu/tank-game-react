@@ -1,6 +1,6 @@
 import { ENEMY_FIRE_TICK_THRESHOLD } from '../constants';
 import { getCurrentPosition } from './movement.system';
-import { inBounds, isImpassable, isOccupiedByPlayer, isOccupiedByTank, tileAt } from './collision.system';
+import { inBounds, isImpassable, isOccupiedByPlayers, isOccupiedByTank, tileAt } from './collision.system';
 import { findAimDirection, findAnyAimDirection } from './los.system';
 import { findNextStep } from './pathfinding.system';
 import type { Direction, PlayerEntity, Position, TankEntity, TileGrid } from '../types';
@@ -49,13 +49,16 @@ export const tickEnemyTank = (
     tank: TankEntity,
     tiles: TileGrid,
     tanks: TankEntity[],
-    player: PlayerEntity,
+    players: PlayerEntity[],
     eagleTargets: Position[],
 ): EnemyTickResult => {
-    const aimDirection = player.hidden
-        ? findAnyAimDirection(tiles, tank.position, eagleTargets)
-        : (findAimDirection(tiles, tank.position, player.position) ??
-            findAnyAimDirection(tiles, tank.position, eagleTargets));
+    // In co-op, aim at whichever visible player the tank has a clear shot at
+    // (checked in id order — player 1 first); the eagle is the fallback aim.
+    const visiblePlayers = players.filter(p => !p.hidden);
+    const playerAim = visiblePlayers
+        .map(p => findAimDirection(tiles, tank.position, p.position))
+        .find((d): d is Direction => d != null) ?? null;
+    const aimDirection = playerAim ?? findAnyAimDirection(tiles, tank.position, eagleTargets);
 
     let direction: Direction;
     let position = tank.position;
@@ -66,13 +69,13 @@ export const tickEnemyTank = (
         const random = Math.random();
         const nextPos = getCurrentPosition(tank.direction, tank.position);
         const canMove = inBounds(nextPos) && !isImpassable(tileAt(tiles, nextPos)) &&
-            !isOccupiedByTank(tanks, nextPos, tank.keyIndex) && !isOccupiedByPlayer(player, nextPos);
+            !isOccupiedByTank(tanks, nextPos, tank.keyIndex) && !isOccupiedByPlayers(players, nextPos);
         const shouldRedirect = random >= 0.9 || !canMove;
 
         if (shouldRedirect) {
             const huntEagle = Math.random() < EAGLE_TARGET_BIAS;
-            const targets = huntEagle ? eagleTargets : player.hidden ? [] : [player.position];
-            const pathDirection = findNextStep(tiles, tank.position, targets, tanks, player, tank.keyIndex);
+            const targets = huntEagle ? eagleTargets : visiblePlayers.map(p => p.position);
+            const pathDirection = findNextStep(tiles, tank.position, targets, tanks, players, tank.keyIndex);
             direction = pathDirection ?? getChangeDirection();
         } else {
             direction = tank.direction;

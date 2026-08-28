@@ -27,6 +27,9 @@ export interface BulletEntity {
 }
 
 export interface PlayerEntity {
+    /** 0 for player 1, 1 for player 2. Routes keyboard input, HUD lives, and
+     * per-player state; also the index into `Engine`'s `players` array. */
+    id: number;
     position: Position;
     direction: Direction | '';
     hidden: boolean;
@@ -37,6 +40,14 @@ export interface PlayerEntity {
     /** While true, `hitPlayer()` is a no-op and driving onto a tank destroys
      * it instead of blocking movement — granted by the invincibility powerup. */
     invincible: boolean;
+    /** Remaining lives for this player (co-op: each player has their own pool).
+     * At 0 the player is `hidden` and `active` is false — out until next level. */
+    lives: number;
+    /** False once this player is out of lives — stays out for the rest of the
+     * level; the game is only lost when every player is inactive. */
+    active: boolean;
+    /** This player's own respawn point (P1 and P2 start on different cells). */
+    spawn: { position: Position; direction: Direction };
 }
 
 export type PowerupKind = 'invincibility' | 'freeze';
@@ -59,7 +70,10 @@ export interface LevelDefinition {
     /** [row, col] tile-grid indices of the eagle base's 4 sub-tiles. */
     flagPosition: GridCell[];
     tankSpawns: { position: Position; direction: Direction }[];
-    playerStart: { position: Position; direction: Direction };
+    /** One entry per player slot — index 0 is player 1's start, index 1 is
+     * player 2's (used only in a 2-player game). Every level must define at
+     * least 2 so local co-op works on it. */
+    playerStarts: { position: Position; direction: Direction }[];
 }
 
 export interface EngineSnapshot {
@@ -67,10 +81,16 @@ export interface EngineSnapshot {
     tiles: TileGrid;
     tanks: TankEntity[];
     bullets: BulletEntity[];
+    /** All players in the current game — 1 entry for a solo game, 2 for local
+     * co-op. Index matches `PlayerEntity.id`. */
+    players: PlayerEntity[];
+    /** Back-compat alias for `players[0]` — pre-2P callers/renderers that only
+     * ever cared about player 1. */
     player: PlayerEntity;
     powerups: PowerupEntity[];
     timeRemainingSec: number;
     levelIndex: number;
     totalLevels: number;
+    /** Back-compat alias for `players[0].lives`. */
     lives: number;
 }

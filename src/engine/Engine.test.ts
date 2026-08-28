@@ -327,6 +327,79 @@ describe('lives and respawn', () => {
     });
 });
 
+describe('local co-op (2 players)', () => {
+    it('start(2) puts two players on their own spawns, each with a full life pool', () => {
+        const engine = new Engine();
+        const events: EngineEvent[] = [];
+        engine.on(e => events.push(e));
+        engine.start(2);
+
+        const snap = engine.getSnapshot();
+        expect(snap.players).toHaveLength(2);
+        expect(snap.players.map(p => p.id)).toEqual([0, 1]);
+        expect(snap.players[0].position).not.toEqual(snap.players[1].position);
+        expect(snap.players.every(p => p.lives === STARTING_LIVES && p.active)).toBe(true);
+        // back-compat aliases still point at player 1
+        expect(snap.player).toBe(snap.players[0]);
+        expect(snap.lives).toBe(snap.players[0].lives);
+        // a livesChanged is emitted for each player so both HUD counters seed
+        expect(events.filter(e => e.type === 'livesChanged').map(e => (e as { playerId: number }).playerId)).toEqual([0, 1]);
+    });
+
+    it('an enemy bullet hitting player 2 only costs player 2 a life, and the game continues', () => {
+        const engine = new Engine();
+        engine.start(2);
+        const p2Start = engine.getSnapshot().players[1].position;
+
+        engine.getSnapshot().bullets.push({
+            keyIndex: 'eb1', position: [p2Start[0], p2Start[1] - 20], direction: 'SOUTH', isPlayerBullet: false,
+        });
+        engine.tick();
+
+        const snap = engine.getSnapshot();
+        expect(snap.players[1].hidden).toBe(true);
+        expect(snap.players[1].lives).toBe(STARTING_LIVES - 1);
+        expect(snap.players[0].lives).toBe(STARTING_LIVES); // player 1 untouched
+        expect(snap.status).toBe('playing');
+    });
+
+    it('is lost only once BOTH players are out of lives, not when just one is', () => {
+        const engine = new Engine();
+        engine.start(2);
+
+        const drainPlayer = (playerId: number) => {
+            for (let hit = 0; hit < STARTING_LIVES; hit++) {
+                const pos = engine.getSnapshot().players[playerId].position;
+                engine.getSnapshot().bullets.push({
+                    keyIndex: `eb${playerId}_${hit}`, position: [pos[0], pos[1] - 20],
+                    direction: 'SOUTH', isPlayerBullet: false,
+                });
+                engine.tick();
+                for (let i = 0; i < GAME_OVER_DELAY_TICKS; i++) engine.tick();
+            }
+        };
+
+        drainPlayer(0);
+        expect(engine.getSnapshot().status).toBe('playing'); // player 2 still fighting
+        expect(engine.getSnapshot().players[0].active).toBe(false);
+
+        drainPlayer(1);
+        expect(engine.getSnapshot().status).toBe('lost');
+    });
+
+    it('a player cannot drive onto the cell the other player occupies', () => {
+        const engine = new Engine();
+        engine.start(2);
+        // Put player 2 directly west of player 1, then try to walk player 1 into it.
+        const snap = engine.getSnapshot();
+        snap.players[1].position = [snap.players[0].position[0] - 20, snap.players[0].position[1]];
+        const p1Before = snap.players[0].position;
+
+        engine.setPlayerInputDirection('WEST', 0);
+        expect(engine.getSnapshot().players[0].position).toEqual(p1Before); // blocked by the partner
+    });
+});
+
 describe('pause', () => {
     it('togglePause flips between playing and paused, emitting gamePaused/gameResumed, and does nothing from any other status', () => {
         const engine = new Engine();

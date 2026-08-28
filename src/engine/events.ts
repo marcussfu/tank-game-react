@@ -8,8 +8,8 @@ export type EngineEvent =
     | { type: 'bulletFired'; keyIndex: string; isPlayerBullet: boolean }
     | { type: 'bulletExpired'; keyIndex: string }
     | { type: 'mapChanged' }
-    | { type: 'playerHit' }
-    | { type: 'playerRespawned' }
+    | { type: 'playerHit'; playerId: number }
+    | { type: 'playerRespawned'; playerId: number }
     | { type: 'starCollected' }
     | { type: 'eagleDestroyed' }
     | { type: 'gameWon' }
@@ -19,7 +19,7 @@ export type EngineEvent =
     | { type: 'timeTick'; timeRemainingSec: number }
     | { type: 'shortOfTime' }
     | { type: 'levelChanged'; levelIndex: number; totalLevels: number }
-    | { type: 'livesChanged'; lives: number }
+    | { type: 'livesChanged'; playerId: number; lives: number }
     | { type: 'powerupSpawned'; keyIndex: string; position: Position; kind: PowerupKind }
     | { type: 'powerupCollected'; kind: PowerupKind };
 
