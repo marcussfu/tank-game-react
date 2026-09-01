@@ -65,5 +65,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     globals: true,
+    // The `server` workspace has its own vitest project (node env, no jsdom).
+    exclude: ['**/node_modules/**', '**/dist/**', 'server/**'],
   },
 });

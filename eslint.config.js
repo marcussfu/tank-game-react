@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist'] },
+  { ignores: ['dist', 'server/node_modules'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
@@ -25,6 +25,18 @@ export default tseslint.config(
       // trip this rule throughout. Structurally eliminated by the M1/M2 Engine rewrite;
       // downgraded to warn for M0 so it doesn't block a same-behavior mechanical port.
       'react-hooks/set-state-in-effect': 'warn',
+    },
+  },
+  {
+    // The `server` workspace is plain Node — no browser globals, no React,
+    // and its entry point legitimately logs to stdout.
+    files: ['server/**/*.ts'],
+    languageOptions: {
+      globals: globals.node,
+    },
+    rules: {
+      'react-refresh/only-export-components': 'off',
+      'no-console': 'off',
     },
   },
 );

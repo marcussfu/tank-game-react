@@ -3,13 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "server"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "server:dev": "npm --workspace server run dev",
+    "server:start": "npm --workspace server run start",
+    "server:typecheck": "npm --workspace server run typecheck",
+    "server:test": "npm --workspace server run test",
+    "test:all": "npm run test && npm run server:test"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
