@@ -30,10 +30,14 @@ export interface GameLoopOptions {
  * recover from, and one-tick-per-interval keeps the loop trivially
  * deterministic under fake timers.
  */
+export type TickListener = (serverTick: number) => void;
+
 export class GameLoop {
     private readonly engine = new Engine();
     private readonly tickMs: number;
     private timer: ReturnType<typeof setInterval> | null = null;
+    private serverTick = 0;
+    private readonly tickListeners = new Set<TickListener>();
 
     constructor(options: GameLoopOptions = {}) {
         this.tickMs = options.tickMs ?? SIM_TICK_MS;
@@ -43,12 +47,29 @@ export class GameLoop {
         return this.timer !== null;
     }
 
+    /** Ticks elapsed since the current game started (reset by `start`). */
+    get currentTick(): number {
+        return this.serverTick;
+    }
+
     /** Begins (or restarts) a game and starts ticking. `playerCount` is 1 for
      * solo, 2 for co-op — the same argument `Engine.start` takes. */
     start(playerCount = 1): void {
         this.stop();
+        this.serverTick = 0;
         this.engine.start(playerCount);
-        this.timer = setInterval(() => this.engine.tick(), this.tickMs);
+        this.timer = setInterval(() => {
+            this.engine.tick();
+            this.serverTick += 1;
+            for (const listener of this.tickListeners) listener(this.serverTick);
+        }, this.tickMs);
+    }
+
+    /** Runs `listener` after every `engine.tick()` — the hook M-MP-3's `Room`
+     * uses to broadcast a fresh snapshot each tick. Returns an unsubscribe fn. */
+    onTick(listener: TickListener): () => void {
+        this.tickListeners.add(listener);
+        return () => this.tickListeners.delete(listener);
     }
 
     /** Stops the interval. The engine keeps its state — `resume`-style

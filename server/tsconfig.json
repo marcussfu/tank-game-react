@@ -23,5 +23,5 @@
   // The engine is consumed straight from the web app's source tree (it is
   // pure, framework-free TS) rather than duplicated or pre-built. Only the
   // engine + its lone shared-types file are pulled in — not the React code.
-  "include": ["src/**/*", "../src/engine/**/*", "../src/types/**/*"]
+  "include": ["src/**/*", "../src/engine/**/*", "../src/types/**/*", "../src/net/**/*"]
 }
