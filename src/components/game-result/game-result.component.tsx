@@ -4,10 +4,10 @@ import {useAppSelector} from '../../store/hooks';
 import { audioManager } from '../../audio/AudioManager';
 
 import './game-result.styles.scss';
-import type { Engine } from '../../engine/Engine';
+import type { GameController } from '../../engine/GameController';
 
 interface GameResultProps {
-    engine: Engine;
+    engine: GameController;
 }
 
 const GameResult = ({engine}: GameResultProps) => {

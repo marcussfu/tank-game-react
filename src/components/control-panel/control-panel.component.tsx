@@ -6,7 +6,7 @@ import Button from '@mui/material/Button';
 
 import './control-panel.styles.scss';
 import { Fragment } from 'react';
-import type { Engine } from '../../engine/Engine';
+import type { GameController } from '../../engine/GameController';
 import type { Direction } from '../../engine/types';
 
 const FireButton = styled(Button)(({ theme }) => ({
@@ -23,7 +23,7 @@ const FireButton = styled(Button)(({ theme }) => ({
 
 interface ControlPanelProps {
     type: 'move' | 'fire';
-    engine: Engine;
+    engine: GameController;
 }
 
 const moveKeys: Record<string, Direction> = {

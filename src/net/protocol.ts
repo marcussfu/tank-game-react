@@ -38,6 +38,12 @@ export interface TogglePauseMessage {
     type: 'togglePause';
 }
 
+/** Move on to the next level after a stage-clear win (mirrors the local
+ * `GameResult` "STAGE CLEAR" → `engine.advanceLevel()` flow). */
+export interface AdvanceMessage {
+    type: 'advance';
+}
+
 export interface LeaveMessage {
     type: 'leave';
 }
@@ -47,6 +53,7 @@ export type ClientMessage =
     | StartMessage
     | InputMessage
     | TogglePauseMessage
+    | AdvanceMessage
     | LeaveMessage;
 
 // ---- server -> client ----

@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
-import type { Engine } from '../engine/Engine';
+import type { GameController } from '../engine/GameController';
+import type { NetworkGameClient } from '../net/NetworkGameClient';
+import { interpolateSnapshot } from '../net/interpolate';
 import { loadSprites } from './sprites';
 import { drawMap } from './drawMap';
 import { drawEntities } from './drawEntities';
@@ -26,20 +28,23 @@ const WASD_KEYS: Record<string, Direction> = {
     KeyD: 'EAST',
 };
 const P2_FIRE_KEYS = new Set(['ShiftLeft', 'KeyF']);
+const FIRE_KEYS = new Set(['Space', 'Enter']);
 
 interface CanvasStageProps {
-    engine: Engine;
+    engine: GameController;
+    /** Present only in online mode: drives interpolation and tells the input
+     * handler which player slot this browser owns. */
+    netClient?: NetworkGameClient;
 }
 
 /**
- * RAF-driven, fixed-timestep (SIM_TICK_MS) canvas renderer wrapping an
- * `Engine` instance. Only mounted while `world.status === 'playing'` (World
- * owns the Engine instance and its lifecycle — this component just ticks and
- * draws whatever it's given). Owns its own keyboard input, alongside
- * ControlPanel's touch input — the same dual-input-source design the DOM
- * version used (Player's keyboard listeners + ControlPanel's joystick/button).
+ * RAF-driven, fixed-timestep (SIM_TICK_MS) canvas renderer. Only mounted while
+ * `world.status` is 'playing'/'paused'. In local mode it ticks the `Engine`
+ * and draws its snapshot; in online mode (`netClient` set) it never ticks —
+ * it draws the server's latest snapshot interpolated toward the previous one —
+ * and every movement key drives this browser's own player slot.
  */
-const CanvasStage = ({ engine }: CanvasStageProps) => {
+const CanvasStage = ({ engine, netClient }: CanvasStageProps) => {
     const mapCanvasRef = useRef<HTMLCanvasElement>(null);
     const entityCanvasRef = useRef<HTMLCanvasElement>(null);
     const status = useAppSelector(state => state.world.status);
@@ -53,13 +58,17 @@ const CanvasStage = ({ engine }: CanvasStageProps) => {
         let lastTime = performance.now();
         let accumulator = 0;
 
-        // In a solo game WASD is a second alias for player 1 (unchanged
-        // behaviour); in local co-op it drives player 2 instead, and the
-        // arrow keys are player 1 only.
-        const twoPlayer = engine.getSnapshot().players.length > 1;
-        const p1Keys: Record<string, Direction> = twoPlayer ? ARROW_KEYS : { ...ARROW_KEYS, ...WASD_KEYS };
-        const p2Keys: Record<string, Direction> = twoPlayer ? WASD_KEYS : {};
+        const online = !!netClient;
+        // Online: every arrow/WASD key drives this browser's own slot.
+        // Local co-op: arrows are player 1, WASD player 2. Local solo: both are player 1.
+        const twoPlayerLocal = !online && engine.getSnapshot().players.length > 1;
+        const p1Keys: Record<string, Direction> = twoPlayerLocal ? ARROW_KEYS : { ...ARROW_KEYS, ...WASD_KEYS };
+        const p2Keys: Record<string, Direction> = twoPlayerLocal ? WASD_KEYS : {};
         const heldDirections: [Set<Direction>, Set<Direction>] = [new Set(), new Set()];
+
+        // In online mode both key sets funnel into heldDirections[0] and the
+        // slot is the server-assigned local id, read fresh each event.
+        const localSlot = () => (netClient ? netClient.localPlayerId : 0);
 
         const redrawMap = () => {
             const ctx = mapCanvasRef.current?.getContext('2d');
@@ -74,21 +83,21 @@ const CanvasStage = ({ engine }: CanvasStageProps) => {
             if (!disposed) redrawMap();
         });
 
-        const currentHeldDirection = (playerId: number): Direction | '' => {
-            for (const dir of heldDirections[playerId]) return dir;
+        const currentHeldDirection = (bucket: number): Direction | '' => {
+            for (const dir of heldDirections[bucket]) return dir;
             return '';
         };
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if (p1Keys[e.code]) {
                 heldDirections[0].add(p1Keys[e.code]);
-                engine.setPlayerInputDirection(currentHeldDirection(0), 0);
+                engine.setPlayerInputDirection(currentHeldDirection(0), online ? localSlot() : 0);
             } else if (p2Keys[e.code]) {
                 heldDirections[1].add(p2Keys[e.code]);
                 engine.setPlayerInputDirection(currentHeldDirection(1), 1);
-            } else if (e.code === 'Space' || e.code === 'Enter') {
-                engine.firePlayerBullet(0);
-            } else if (twoPlayer && P2_FIRE_KEYS.has(e.code)) {
+            } else if (FIRE_KEYS.has(e.code)) {
+                engine.firePlayerBullet(online ? localSlot() : 0);
+            } else if (twoPlayerLocal && P2_FIRE_KEYS.has(e.code)) {
                 engine.firePlayerBullet(1);
             } else if (e.code === 'Escape') {
                 engine.togglePause();
@@ -97,7 +106,7 @@ const CanvasStage = ({ engine }: CanvasStageProps) => {
         const handleKeyUp = (e: KeyboardEvent) => {
             if (p1Keys[e.code]) {
                 heldDirections[0].delete(p1Keys[e.code]);
-                engine.setPlayerInputDirection(currentHeldDirection(0), 0);
+                engine.setPlayerInputDirection(currentHeldDirection(0), online ? localSlot() : 0);
             } else if (p2Keys[e.code]) {
                 heldDirections[1].delete(p2Keys[e.code]);
                 engine.setPlayerInputDirection(currentHeldDirection(1), 1);
@@ -107,17 +116,24 @@ const CanvasStage = ({ engine }: CanvasStageProps) => {
         window.addEventListener('keyup', handleKeyUp);
 
         const loop = (time: number) => {
-            const delta = Math.min(time - lastTime, MAX_CATCHUP_TICKS * SIM_TICK_MS);
-            lastTime = time;
-            accumulator += delta;
-            while (accumulator >= SIM_TICK_MS) {
-                engine.tick();
-                accumulator -= SIM_TICK_MS;
+            if (netClient) {
+                // Server is authoritative — never tick locally; interpolate
+                // between the two most recent snapshots for smoothness.
+                const alpha = netClient.elapsedSinceSnapshot(time) / SIM_TICK_MS;
+                const drawState = interpolateSnapshot(netClient.getPreviousSnapshot(), engine.getSnapshot(), alpha);
+                const ctx = entityCanvasRef.current?.getContext('2d');
+                if (ctx) drawEntities(ctx, drawState, MAP_WIDTH, MAP_HEIGHT);
+            } else {
+                const delta = Math.min(time - lastTime, MAX_CATCHUP_TICKS * SIM_TICK_MS);
+                lastTime = time;
+                accumulator += delta;
+                while (accumulator >= SIM_TICK_MS) {
+                    engine.tick();
+                    accumulator -= SIM_TICK_MS;
+                }
+                const ctx = entityCanvasRef.current?.getContext('2d');
+                if (ctx) drawEntities(ctx, engine.getSnapshot(), MAP_WIDTH, MAP_HEIGHT);
             }
-
-            const ctx = entityCanvasRef.current?.getContext('2d');
-            if (ctx) drawEntities(ctx, engine.getSnapshot(), MAP_WIDTH, MAP_HEIGHT);
-
             rafId = requestAnimationFrame(loop);
         };
         rafId = requestAnimationFrame(loop);
@@ -129,7 +145,7 @@ const CanvasStage = ({ engine }: CanvasStageProps) => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
         };
-    }, [engine]);
+    }, [engine, netClient]);
 
     // Deliberately no own aspect-ratio here: the DOM version's Map/Player/Tank
     // components just filled whatever box their parent (`.playground-container`,

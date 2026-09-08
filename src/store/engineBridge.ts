@@ -1,4 +1,4 @@
-import type { Engine } from '../engine/Engine';
+import type { GameController } from '../engine/GameController';
 import { TIME_LIMIT_SEC } from '../engine/constants';
 import { setStatus, setShortOfTime } from './worldSlice';
 import { setTimeRemaining, setEnemiesRemaining, setLevel, setLives, resetHud } from './hudSlice';
@@ -10,7 +10,7 @@ import type { AppDispatch } from './store';
  * per Engine instance (e.g. in World's mount effect) and call the returned
  * unsubscribe function on cleanup.
  */
-export const engineBridge = (engine: Engine, dispatch: AppDispatch): (() => void) => {
+export const engineBridge = (engine: GameController, dispatch: AppDispatch): (() => void) => {
     let enemiesRemaining = 0;
 
     return engine.on(event => {

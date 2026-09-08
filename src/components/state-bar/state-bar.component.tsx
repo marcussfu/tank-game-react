@@ -9,10 +9,10 @@ import LivesDisplay from '../../components/lives-display/lives-display.component
 import SettingDialog from '../../components/setting-dialog/setting-dialog.component';
 
 import './state-bar.styles.scss';
-import type { Engine } from '../../engine/Engine';
+import type { GameController } from '../../engine/GameController';
 
 interface StateBarProps {
-    engine: Engine;
+    engine: GameController;
 }
 
 const StateBar = ({engine}: StateBarProps) => {

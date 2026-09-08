@@ -101,6 +101,10 @@ export class Room {
         this.loop.togglePause();
     }
 
+    advanceLevel(): void {
+        this.loop.advanceLevel();
+    }
+
     /** Stops the loop and detaches listeners. Called automatically when the
      * last client leaves; also called by the registry on shutdown. */
     dispose(): void {

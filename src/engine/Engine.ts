@@ -22,6 +22,7 @@ import { getSpawnWave, shouldSpawnWave } from './systems/spawn.system';
 import { isAllTanksCleared, isShortOfTime, isTimeExpired, resolveEagleHit } from './systems/win-lose.system';
 import { EngineEventBus } from './events';
 import type { EngineEvent, EngineEventListener } from './events';
+import type { GameController } from './GameController';
 import type {
     BulletEntity,
     Direction,
@@ -78,7 +79,7 @@ const makeInitialPlayer = (
  * (tank state lost on pause-triggered unmount, queued input firing the
  * instant a pause lifts).
  */
-export class Engine {
+export class Engine implements GameController {
     private levelIndex = 0;
     private level: LevelDefinition = LEVELS[0];
     private eagleTargetPositions: Position[] = [];

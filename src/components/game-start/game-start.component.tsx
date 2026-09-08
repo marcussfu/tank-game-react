@@ -6,38 +6,44 @@ import titleImg from '../../assets/scene/title.png';
 import { audioManager } from '../../audio/AudioManager';
 
 import './game-start.styles.scss';
-import type { Engine } from '../../engine/Engine';
 
-interface GameStartProps {
-    engine: Engine;
+export interface StartRequest {
+    online: boolean;
+    playerCount: 1 | 2;
 }
 
-const GameStart = ({engine}: GameStartProps) => {
+interface GameStartProps {
+    /** Fired at the end of the stage-transition animation. `World` creates the
+     * right controller (local `Engine` or `NetworkGameClient`) and starts it. */
+    onStart: (request: StartRequest) => void;
+}
+
+const GameStart = ({ onStart }: GameStartProps) => {
     const [isShowTransitionStage, setIsShowTransitionStage] = useState(false);
     const [showIntro, setShowIntro] = useState(false);
 
-    const gameStartAction = useCallback((playerCount: number) => {
+    const runStartSequence = useCallback((request: StartRequest) => {
         setTimeout(() => {
             setIsShowTransitionStage(true);
             setTimeout(() => {
                 audioManager.playBg('start');
                 setTimeout(() => {
-                    engine.start(playerCount);
+                    onStart(request);
                 }, 4500);
             }, 500);
         }, 300);
-    }, [engine]);
+    }, [onStart]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key !== 'Enter' || showIntro) return;
             e.preventDefault();
             audioManager.playEffect('click');
-            gameStartAction(1);
+            runStartSequence({ online: false, playerCount: 1 });
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [showIntro, gameStartAction]);
+    }, [showIntro, runStartSequence]);
 
     return (
         <div className='game-start-container'>
@@ -46,11 +52,15 @@ const GameStart = ({engine}: GameStartProps) => {
                 <div className='game-start-button-container'>
                     <div className='game-start-button-content-container'>
                         <div className='select-item-tank1' />
-                        <Button id='game-start-btn-1' clickFunction={() => gameStartAction(1)}>1 PLAYER</Button>
+                        <Button id='game-start-btn-1' clickFunction={() => runStartSequence({ online: false, playerCount: 1 })}>1 PLAYER</Button>
                     </div>
                     <div className='game-start-button-content-container'>
                         <div className='select-item-tank1' />
-                        <Button id='game-start-btn-2' clickFunction={() => gameStartAction(2)}>2 PLAYERS</Button>
+                        <Button id='game-start-btn-2' clickFunction={() => runStartSequence({ online: false, playerCount: 2 })}>2 PLAYERS</Button>
+                    </div>
+                    <div className='game-start-button-content-container'>
+                        <div className='select-item-tank1' />
+                        <Button id='game-start-btn-online' clickFunction={() => runStartSequence({ online: true, playerCount: 2 })}>ONLINE CO-OP</Button>
                     </div>
                 </div>
                 <Button id='game-intro-btn' clickFunction={() => setShowIntro(true)}>RULES</Button>

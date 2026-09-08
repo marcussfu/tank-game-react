@@ -95,6 +95,10 @@ export class GameLoop {
         this.engine.togglePause();
     }
 
+    advanceLevel(): void {
+        this.engine.advanceLevel();
+    }
+
     /** The authoritative world state — M-MP-3 broadcasts this to clients. */
     getSnapshot(): EngineSnapshot {
         return this.engine.getSnapshot();

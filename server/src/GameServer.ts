@@ -148,6 +148,11 @@ export class GameServer {
                 state.room.togglePause();
                 return;
             }
+            case 'advance': {
+                if (!state.room) return this.notJoined(socket);
+                state.room.advanceLevel();
+                return;
+            }
             case 'leave': {
                 this.leaveRoom(state);
                 return;

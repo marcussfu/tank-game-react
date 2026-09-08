@@ -8,7 +8,7 @@ import crash from '../assets/sounds/crash.mp3';
 import find_star from '../assets/sounds/find_star.mp3';
 import shoot_by_player from '../assets/sounds/shoot_by_player11.mp3';
 import shoot_by_tank from '../assets/sounds/shoot_by_tank.mp3';
-import type { Engine } from '../engine/Engine';
+import type { GameController } from '../engine/GameController';
 
 export type BgTrack = 'start' | 'main' | 'shortOfTime' | 'win' | 'lose' | 'none';
 export type EffectKey = 'click' | 'crash' | 'findStar' | 'shootPlayer' | 'shootTank';
@@ -106,7 +106,7 @@ export class AudioManager {
     }
 
     /** Subscribes sound effects to Engine events; returns the unsubscribe fn. */
-    bindEngine(engine: Pick<Engine, 'on'>): () => void {
+    bindEngine(engine: Pick<GameController, 'on'>): () => void {
         return engine.on(event => {
             switch (event.type) {
                 case 'bulletFired':

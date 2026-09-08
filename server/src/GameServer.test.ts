@@ -184,6 +184,29 @@ describe('GameServer', () => {
         expect(err.code).toBe('not-joined');
         c.close();
     });
+
+    it('accepts advance / togglePause from a joined client without erroring', async () => {
+        const c = await TestClient.connect(port);
+        c.send({ type: 'join', protocolVersion: PROTOCOL_VERSION });
+        await c.waitForType('joined');
+        c.send({ type: 'start', playerCount: 1 });
+        await c.waitForType('snapshot'); // game running
+
+        c.send({ type: 'togglePause' });
+        c.send({ type: 'advance' });
+        // No error comes back; the connection stays healthy.
+        await new Promise((r) => setTimeout(r, 60));
+        expect(c.inbox.some((m) => m.type === 'error')).toBe(false);
+        c.close();
+    });
+
+    it('errors when a non-joined client sends advance', async () => {
+        const c = await TestClient.connect(port);
+        c.send({ type: 'advance' });
+        const err = await c.waitForType('error');
+        expect(err.code).toBe('not-joined');
+        c.close();
+    });
 });
 
 function arraysEqual(a: readonly number[], b: readonly number[]): boolean {

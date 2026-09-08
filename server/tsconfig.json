@@ -23,5 +23,8 @@
   // The engine is consumed straight from the web app's source tree (it is
   // pure, framework-free TS) rather than duplicated or pre-built. Only the
   // engine + its lone shared-types file are pulled in — not the React code.
-  "include": ["src/**/*", "../src/engine/**/*", "../src/types/**/*", "../src/net/**/*"]
+  // Only the shared wire types from src/net — the rest of that folder
+  // (NetworkGameClient, interpolate, wsUrl) is browser-only and uses
+  // import.meta.env, which this Node project doesn't type.
+  "include": ["src/**/*", "../src/engine/**/*", "../src/types/**/*", "../src/net/protocol.ts"]
 }
