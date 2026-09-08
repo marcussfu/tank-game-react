@@ -1,0 +1,16 @@
+.net-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    margin: 0 8px;
+    color: #cccccc;
+
+    .net-peer-up {
+        color: #3ad13a;
+    }
+
+    .net-peer-down {
+        color: #ff5555;
+    }
+}

@@ -48,13 +48,21 @@ export interface LeaveMessage {
     type: 'leave';
 }
 
+/** Round-trip latency probe. `t` is the client's `Date.now()` at send; the
+ * server echoes it straight back in a `pong`. */
+export interface PingMessage {
+    type: 'ping';
+    t: number;
+}
+
 export type ClientMessage =
     | JoinMessage
     | StartMessage
     | InputMessage
     | TogglePauseMessage
     | AdvanceMessage
-    | LeaveMessage;
+    | LeaveMessage
+    | PingMessage;
 
 // ---- server -> client ----
 
@@ -66,6 +74,16 @@ export interface JoinedMessage {
     playerId: number;
     /** Which slots are currently occupied (0/1). */
     occupiedSlots: number[];
+    /** True if a game is already in progress in this room (a late joiner /
+     * reconnect resumes straight into play; otherwise the client shows a
+     * lobby). */
+    gameRunning: boolean;
+}
+
+/** Reply to a `ping`, echoing its `t` so the client can compute RTT. */
+export interface PongMessage {
+    type: 'pong';
+    t: number;
 }
 
 /** A peer joined or left the room. */
@@ -103,7 +121,8 @@ export type ServerMessage =
     | PeerMessage
     | SnapshotMessage
     | EventMessage
-    | ErrorMessage;
+    | ErrorMessage
+    | PongMessage;
 
 // ---- helpers ----
 

@@ -128,6 +128,7 @@ export class GameServer {
                     roomId,
                     playerId,
                     occupiedSlots: room.occupiedSlots,
+                    gameRunning: room.isRunning,
                 });
                 // Fill-and-go: a full room with no game in progress starts one.
                 if (room.isFull && !room.isRunning) room.startGame(2);
@@ -155,6 +156,10 @@ export class GameServer {
             }
             case 'leave': {
                 this.leaveRoom(state);
+                return;
+            }
+            case 'ping': {
+                this.send(socket, { type: 'pong', t: message.t });
                 return;
             }
         }

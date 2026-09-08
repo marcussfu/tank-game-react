@@ -83,7 +83,32 @@ describe('GameServer', () => {
         const joined = await c.waitForType('joined');
         expect(joined.playerId).toBe(0);
         expect(joined.roomId).toBe('default');
+        expect(joined.gameRunning).toBe(false); // lone joiner, nothing started yet
         c.close();
+    });
+
+    it('replies to a ping with a pong echoing t', async () => {
+        const c = await TestClient.connect(port);
+        c.send({ type: 'ping', t: 123456 });
+        const pong = await c.waitForType('pong');
+        expect(pong.t).toBe(123456);
+        c.close();
+    });
+
+    it('tells a reconnecting joiner the game is already running', async () => {
+        const a = await TestClient.connect(port);
+        a.send({ type: 'join', protocolVersion: PROTOCOL_VERSION });
+        await a.waitForType('joined');
+        a.send({ type: 'start', playerCount: 1 });
+        await a.waitForType('snapshot');
+
+        const b = await TestClient.connect(port);
+        b.send({ type: 'join', protocolVersion: PROTOCOL_VERSION });
+        const joinedB = await b.waitForType('joined');
+        expect(joinedB.gameRunning).toBe(true);
+
+        a.close();
+        b.close();
     });
 
     it('rejects a protocol-version mismatch', async () => {

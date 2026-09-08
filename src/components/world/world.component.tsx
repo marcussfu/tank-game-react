@@ -3,6 +3,7 @@ import { useAppSelector, useAppDispatch } from '../../store/hooks';
 import { Engine } from '../../engine/Engine';
 import type { GameController } from '../../engine/GameController';
 import { NetworkGameClient } from '../../net/NetworkGameClient';
+import type { NetPhase } from '../../net/NetworkGameClient';
 import { WS_URL } from '../../net/wsUrl';
 import { engineBridge } from '../../store/engineBridge';
 import { audioManager } from '../../audio/AudioManager';
@@ -11,6 +12,7 @@ import CanvasStage from '../../render/CanvasStage';
 import GameResult from '../../components/game-result/game-result.component';
 import GameStart from '../../components/game-start/game-start.component';
 import type { StartRequest } from '../../components/game-start/game-start.component';
+import NetworkLobby from '../../components/network-lobby/network-lobby.component';
 import StateBar from '../../components/state-bar/state-bar.component';
 
 import ControlPanel from '../../components/control-panel/control-panel.component';
@@ -23,9 +25,11 @@ const World = () => {
     // `handleStart` and reset to a fresh local Engine on the way back to the
     // menu. `useState`'s lazy initializer creates the first one exactly once.
     const [controller, setController] = useState<GameController>(() => new Engine());
-    // The player count to start with, applied once the new controller's
-    // engineBridge/audio bindings are in place (see the start effect below).
+    // Local-mode only: the player count to start with, applied once the new
+    // controller's engineBridge/audio bindings are in place (see the start
+    // effect below). Online mode never auto-starts — the lobby drives it.
     const pendingStart = useRef<number | null>(null);
+    const [netPhase, setNetPhase] = useState<NetPhase>('closed');
 
     const dispatch = useAppDispatch();
     const { status, shortOfTime } = useAppSelector(state => state.world);
@@ -33,20 +37,32 @@ const World = () => {
 
     useEffect(() => {
         const unbridge = engineBridge(controller, dispatch);
-        // An online game ending (returnToMenu / socket close) emits gameReset;
-        // swap the spent network client back to a live local Engine so the
-        // menu's next action has something to run.
+        // An online game ending (returnToMenu / reconnect giving up) emits
+        // gameReset; swap the spent network client back to a live local Engine
+        // so the menu's next action has something to run.
         const unswap = controller.on(event => {
             if (event.type === 'gameReset' && controller instanceof NetworkGameClient) {
                 setController(new Engine());
             }
         });
-        return () => { unbridge(); unswap(); };
+        return () => {
+            unbridge();
+            unswap();
+            if (controller instanceof NetworkGameClient) controller.dispose();
+        };
     }, [controller, dispatch]);
     useEffect(() => audioManager.bindEngine(controller), [controller]);
     useEffect(() => audioManager.setVolumes(bgVolume, effectVolume), [bgVolume, effectVolume]);
 
-    // Runs after the two bind effects above on the same commit, so the new
+    // Track the network client's lobby/connection phase (drives which screen
+    // shows). A local Engine has no phase — `showLobby` below is already gated
+    // on `netClient`, so a stale value is harmless.
+    useEffect(() => {
+        if (!(controller instanceof NetworkGameClient)) return;
+        return controller.onNetState(s => setNetPhase(s.phase));
+    }, [controller]);
+
+    // Runs after the bind effects above on the same commit, so the new
     // controller's `gameStarted` event is never emitted before engineBridge is
     // listening for it.
     useEffect(() => {
@@ -57,7 +73,7 @@ const World = () => {
     }, [controller]);
 
     const handleStart = useCallback(({ online, playerCount }: StartRequest) => {
-        pendingStart.current = playerCount;
+        if (!online) pendingStart.current = playerCount;
         setController(online ? new NetworkGameClient(WS_URL) : new Engine());
     }, []);
 
@@ -75,15 +91,19 @@ const World = () => {
     }, [status, shortOfTime]);
 
     const netClient = controller instanceof NetworkGameClient ? controller : undefined;
+    // Online, but not in a running game yet (or connection is in trouble):
+    // the lobby screen owns the view.
+    const showLobby = !!netClient && netPhase !== 'playing';
 
     return (
         <div className='world-container'>
             <ControlPanel type='move' engine={controller} />
             <div className='playground-container'>
-                {status === 'menu' && <GameStart onStart={handleStart} />}
-                {(status === 'playing' || status === 'paused') && <CanvasStage engine={controller} netClient={netClient} />}
-                {(status === 'won' || status === 'lost') && <GameResult engine={controller} />}
-                {status !== 'menu' && <StateBar engine={controller} />}
+                {status === 'menu' && !netClient && <GameStart onStart={handleStart} />}
+                {showLobby && <NetworkLobby client={netClient} />}
+                {!showLobby && (status === 'playing' || status === 'paused') && <CanvasStage engine={controller} netClient={netClient} />}
+                {!showLobby && (status === 'won' || status === 'lost') && <GameResult engine={controller} />}
+                {!showLobby && status !== 'menu' && <StateBar engine={controller} netClient={netClient} />}
             </div>
             <ControlPanel type='fire' engine={controller} />
         </div>
