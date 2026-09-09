@@ -7,8 +7,10 @@ import type { NetPhase } from '../../net/NetworkGameClient';
 import { WS_URL } from '../../net/wsUrl';
 import { engineBridge } from '../../store/engineBridge';
 import { audioManager } from '../../audio/AudioManager';
+import { bindBanter } from '../../game-feed/bindBanter';
 
 import CanvasStage from '../../render/CanvasStage';
+import BannerFeed from '../../game-feed/banner-feed.component';
 import GameResult from '../../components/game-result/game-result.component';
 import GameStart from '../../components/game-start/game-start.component';
 import type { StartRequest } from '../../components/game-start/game-start.component';
@@ -52,6 +54,7 @@ const World = () => {
         };
     }, [controller, dispatch]);
     useEffect(() => audioManager.bindEngine(controller), [controller]);
+    useEffect(() => bindBanter(controller, dispatch), [controller, dispatch]);
     useEffect(() => audioManager.setVolumes(bgVolume, effectVolume), [bgVolume, effectVolume]);
 
     // Track the network client's lobby/connection phase (drives which screen
@@ -102,6 +105,7 @@ const World = () => {
                 {status === 'menu' && !netClient && <GameStart onStart={handleStart} />}
                 {showLobby && <NetworkLobby client={netClient} />}
                 {!showLobby && (status === 'playing' || status === 'paused') && <CanvasStage engine={controller} netClient={netClient} />}
+                {!showLobby && status === 'playing' && <BannerFeed />}
                 {!showLobby && (status === 'won' || status === 'lost') && <GameResult engine={controller} />}
                 {!showLobby && status !== 'menu' && <StateBar engine={controller} netClient={netClient} />}
             </div>

@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import worldReducer from '../store/worldSlice';
 import hudReducer from '../store/hudSlice';
 import settingsReducer from '../store/settingsSlice';
+import feedReducer from '../game-feed/feedSlice';
 import type { RootState } from '../store/store';
 
 /** A fresh store per test, instead of importing the app's real singleton —
@@ -13,6 +14,7 @@ export const makeTestStore = (preloadedState?: Partial<RootState>) =>
             world: worldReducer,
             hud: hudReducer,
             settings: settingsReducer,
+            feed: feedReducer,
         },
         // Tests only ever preload a subset of slices; the rest fall back to
         // each slice's own initialState via redux's normal combineReducers

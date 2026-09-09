@@ -28,9 +28,9 @@ export default tseslint.config(
     },
   },
   {
-    // The `server` workspace is plain Node — no browser globals, no React,
-    // and its entry point legitimately logs to stdout.
-    files: ['server/**/*.ts'],
+    // The `server` workspace and the offline `scripts/` are plain Node — no
+    // browser globals, no React, and they legitimately log to stdout.
+    files: ['server/**/*.ts', 'scripts/**/*.ts'],
     languageOptions: {
       globals: globals.node,
     },
