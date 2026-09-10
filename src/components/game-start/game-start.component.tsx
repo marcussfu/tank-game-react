@@ -2,14 +2,20 @@ import { useCallback, useEffect, useState } from 'react';
 
 import Button from '../../components/button/button.component';
 import GameIntroDialog from '../game-intro/game-intro-dialog.component';
+import Leaderboard from '../leaderboard/leaderboard.component';
 import titleImg from '../../assets/scene/title.png';
 import { audioManager } from '../../audio/AudioManager';
+import { clearSave, loadSave } from '../../services/api';
+import { getPlayerKey } from '../../services/playerKey';
+import type { SaveRow } from '../../net/apiTypes';
 
 import './game-start.styles.scss';
 
 export interface StartRequest {
     online: boolean;
     playerCount: 1 | 2;
+    /** Local resume (CONTINUE) — a saved run to pick back up. */
+    resume?: { levelIndex: number; lives: number; score: number };
 }
 
 interface GameStartProps {
@@ -21,6 +27,16 @@ interface GameStartProps {
 const GameStart = ({ onStart }: GameStartProps) => {
     const [isShowTransitionStage, setIsShowTransitionStage] = useState(false);
     const [showIntro, setShowIntro] = useState(false);
+    const [showLeaderboard, setShowLeaderboard] = useState(false);
+    const [save, setSave] = useState<SaveRow | null>(null);
+
+    useEffect(() => {
+        const ctrl = new AbortController();
+        loadSave(getPlayerKey(), ctrl.signal).then((s) => {
+            if (!ctrl.signal.aborted) setSave(s);
+        });
+        return () => ctrl.abort();
+    }, []);
 
     const runStartSequence = useCallback((request: StartRequest) => {
         setTimeout(() => {
@@ -34,35 +50,53 @@ const GameStart = ({ onStart }: GameStartProps) => {
         }, 300);
     }, [onStart]);
 
+    /** A brand-new run abandons any saved one. */
+    const startFresh = useCallback((playerCount: 1 | 2, online = false) => {
+        void clearSave(getPlayerKey());
+        runStartSequence({ online, playerCount });
+    }, [runStartSequence]);
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key !== 'Enter' || showIntro) return;
+            if (e.key !== 'Enter' || showIntro || showLeaderboard) return;
             e.preventDefault();
             audioManager.playEffect('click');
-            runStartSequence({ online: false, playerCount: 1 });
+            startFresh(1);
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [showIntro, runStartSequence]);
+    }, [showIntro, showLeaderboard, startFresh]);
 
     return (
         <div className='game-start-container'>
             {!isShowTransitionStage && <>
                 <img className='title' src={titleImg} alt='title' />
                 <div className='game-start-button-container'>
+                    {save && (
+                        <div className='game-start-button-content-container'>
+                            <div className='select-item-tank1' />
+                            <Button
+                                id='game-start-btn-continue'
+                                clickFunction={() => runStartSequence({ online: false, playerCount: 1, resume: save })}
+                            >
+                                CONTINUE <small>LV {save.levelIndex + 1}</small>
+                            </Button>
+                        </div>
+                    )}
                     <div className='game-start-button-content-container'>
                         <div className='select-item-tank1' />
-                        <Button id='game-start-btn-1' clickFunction={() => runStartSequence({ online: false, playerCount: 1 })}>1 PLAYER</Button>
+                        <Button id='game-start-btn-1' clickFunction={() => startFresh(1)}>1 PLAYER</Button>
                     </div>
                     <div className='game-start-button-content-container'>
                         <div className='select-item-tank1' />
-                        <Button id='game-start-btn-2' clickFunction={() => runStartSequence({ online: false, playerCount: 2 })}>2 PLAYERS</Button>
+                        <Button id='game-start-btn-2' clickFunction={() => startFresh(2)}>2 PLAYERS</Button>
                     </div>
                     <div className='game-start-button-content-container'>
                         <div className='select-item-tank1' />
                         <Button id='game-start-btn-online' clickFunction={() => runStartSequence({ online: true, playerCount: 2 })}>ONLINE CO-OP</Button>
                     </div>
                 </div>
+                <Button id='game-leaderboard-btn' clickFunction={() => setShowLeaderboard(true)}>LEADERBOARD</Button>
                 <Button id='game-intro-btn' clickFunction={() => setShowIntro(true)}>RULES</Button>
             </>}
             {isShowTransitionStage && <div className='stage-container'>
@@ -71,6 +105,7 @@ const GameStart = ({ onStart }: GameStartProps) => {
                 <div className='stage-text'>STAGE&nbsp;&nbsp;&nbsp;&nbsp;1</div>
             </div>}
             <GameIntroDialog open={showIntro} onClose={() => setShowIntro(false)} />
+            {showLeaderboard && <Leaderboard onClose={() => setShowLeaderboard(false)} />}
         </div>
     )
 };

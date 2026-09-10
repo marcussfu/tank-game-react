@@ -6,6 +6,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 
 import Timing from '../../components/timing/timing.component';
 import LivesDisplay from '../../components/lives-display/lives-display.component';
+import ScoreDisplay from '../../components/score-display/score-display.component';
 import NetStatus from '../../components/net-status/net-status.component';
 import SettingDialog from '../../components/setting-dialog/setting-dialog.component';
 
@@ -37,6 +38,7 @@ const StateBar = ({ engine, netClient }: StateBarProps) => {
                 </IconButton>
             )}
             <Timing />
+            {isInGame && <ScoreDisplay />}
             {isInGame && <LivesDisplay />}
             {isInGame && netClient && <NetStatus client={netClient} />}
             <SettingDialog />

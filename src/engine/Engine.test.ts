@@ -1,6 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Engine } from './Engine';
-import { FREEZE_DURATION_TICKS, GAME_OVER_DELAY_TICKS, POWERUP_SPAWN_INTERVAL_SEC, SIM_TICK_MS, STARTING_LIVES } from './constants';
+import {
+    FREEZE_DURATION_TICKS,
+    GAME_OVER_DELAY_TICKS,
+    POWERUP_SPAWN_INTERVAL_SEC,
+    SCORE_LEVEL_CLEAR,
+    SCORE_PER_TANK,
+    SCORE_TIME_BONUS_PER_SEC,
+    SIM_TICK_MS,
+    STARTING_LIVES,
+} from './constants';
 import type { EngineEvent } from './events';
 
 afterEach(() => {
@@ -25,7 +34,7 @@ describe('start', () => {
         engine.on(e => events.push(e));
         engine.start();
         expect(events.map(e => e.type)).toEqual([
-            'gameStarted', 'levelChanged', 'livesChanged', 'tankSpawned', 'tankSpawned', 'tankSpawned',
+            'gameStarted', 'levelChanged', 'livesChanged', 'scoreChanged', 'tankSpawned', 'tankSpawned', 'tankSpawned',
         ]);
     });
 
@@ -397,6 +406,82 @@ describe('local co-op (2 players)', () => {
 
         engine.setPlayerInputDirection('WEST', 0);
         expect(engine.getSnapshot().players[0].position).toEqual(p1Before); // blocked by the partner
+    });
+});
+
+describe('score', () => {
+    it('starts at 0 and awards SCORE_PER_TANK per kill, emitting scoreChanged', () => {
+        const engine = new Engine();
+        engine.start();
+        expect(engine.getSnapshot().score).toBe(0);
+
+        const events: EngineEvent[] = [];
+        engine.on((e) => events.push(e));
+
+        // A player bullet reaching an enemy tank.
+        engine.getSnapshot().tanks[0].position = [280, 440];
+        engine.getSnapshot().bullets.push({ keyIndex: 'pb1', position: [280, 460], direction: 'NORTH', isPlayerBullet: true });
+        engine.tick();
+
+        expect(engine.getSnapshot().score).toBe(SCORE_PER_TANK);
+        expect(events.some((e) => e.type === 'scoreChanged' && e.score === SCORE_PER_TANK)).toBe(true);
+    });
+
+    it('adds the level-clear bonus + time bonus on a win', () => {
+        const engine = new Engine();
+        engine.start();
+        engine.getSnapshot().tiles[23][15] = 4; // reveal the star east of the player
+        const t = engine.getSnapshot().timeRemainingSec;
+        engine.setPlayerInputDirection('EAST');
+
+        expect(engine.getSnapshot().status).toBe('won');
+        expect(engine.getSnapshot().score).toBe(SCORE_LEVEL_CLEAR + t * SCORE_TIME_BONUS_PER_SEC);
+    });
+
+    it('carries the score across advanceLevel and resets it on a fresh start / returnToMenu', () => {
+        const engine = new Engine();
+        engine.start();
+        engine.getSnapshot().tiles[23][15] = 4;
+        engine.setPlayerInputDirection('EAST'); // win level 0
+        const wonScore = engine.getSnapshot().score;
+        expect(wonScore).toBeGreaterThan(0);
+
+        engine.advanceLevel();
+        expect(engine.getSnapshot().score).toBe(wonScore); // carried
+
+        engine.start();
+        expect(engine.getSnapshot().score).toBe(0);
+
+        engine.returnToMenu();
+        expect(engine.getSnapshot().score).toBe(0);
+    });
+});
+
+describe('start(resume)', () => {
+    it('begins at the resumed level with the given lives and score', () => {
+        const engine = new Engine();
+        engine.start(1, { levelIndex: 1, lives: 2, score: 3400 });
+
+        const snap = engine.getSnapshot();
+        expect(snap.levelIndex).toBe(1);
+        expect(snap.players[0].lives).toBe(2);
+        expect(snap.score).toBe(3400);
+        expect(snap.status).toBe('playing');
+    });
+
+    it('clamps an out-of-range resume level index', () => {
+        const engine = new Engine();
+        const total = engine.getSnapshot().totalLevels;
+        engine.start(1, { levelIndex: 99, lives: 1, score: 0 });
+        expect(engine.getSnapshot().levelIndex).toBe(total - 1);
+    });
+
+    it('emits a scoreChanged carrying the resumed score', () => {
+        const engine = new Engine();
+        const events: EngineEvent[] = [];
+        engine.on((e) => events.push(e));
+        engine.start(1, { levelIndex: 0, lives: 3, score: 500 });
+        expect(events.some((e) => e.type === 'scoreChanged' && e.score === 500)).toBe(true);
     });
 });
 

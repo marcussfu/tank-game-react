@@ -29,6 +29,7 @@ const emptySnapshot = (): EngineSnapshot => {
         levelIndex: 0,
         totalLevels: 1,
         lives: players[0].lives,
+        score: 0,
     };
 };
 

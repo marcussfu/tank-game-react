@@ -19,8 +19,10 @@ export interface GameController {
      * from the server (a neutral empty snapshot until the first arrives). */
     getSnapshot(): EngineSnapshot;
 
-    /** Begin a game. `playerCount` is 1 (solo) or 2 (co-op). */
-    start(playerCount?: number): void;
+    /** Begin a game. `playerCount` is 1 (solo) or 2 (co-op). `resume` (local
+     * `Engine` only — the network client ignores it) restarts a saved run at
+     * a given level with carried lives/score. */
+    start(playerCount?: number, resume?: { levelIndex: number; lives: number; score: number }): void;
 
     /** Back to the menu / tear down the current game. */
     returnToMenu(): void;

@@ -93,4 +93,6 @@ export interface EngineSnapshot {
     totalLevels: number;
     /** Back-compat alias for `players[0].lives`. */
     lives: number;
+    /** Shared run score — accrues across levels within one run. */
+    score: number;
 }

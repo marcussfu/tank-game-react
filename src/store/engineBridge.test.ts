@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { engineBridge } from './engineBridge';
 import { setStatus, setShortOfTime } from './worldSlice';
-import { setTimeRemaining, setEnemiesRemaining, resetHud } from './hudSlice';
+import { setTimeRemaining, setEnemiesRemaining, setScore, resetHud } from './hudSlice';
 import { TIME_LIMIT_SEC } from '../engine/constants';
 import type { Engine } from '../engine/Engine';
 import type { EngineEvent, EngineEventListener } from '../engine/events';
@@ -67,6 +67,15 @@ describe('engineBridge', () => {
 
         emit({ type: 'gameResumed' });
         expect(dispatch).toHaveBeenCalledWith(setStatus('playing'));
+    });
+
+    it('mirrors scoreChanged into setScore', () => {
+        const { engine, emit } = makeFakeEngine();
+        const dispatch = vi.fn();
+        engineBridge(engine, dispatch);
+
+        emit({ type: 'scoreChanged', score: 1200 });
+        expect(dispatch).toHaveBeenCalledWith(setScore(1200));
     });
 
     it('mirrors timeTick and shortOfTime', () => {

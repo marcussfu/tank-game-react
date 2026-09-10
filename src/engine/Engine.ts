@@ -3,6 +3,9 @@ import {
     FREEZE_DURATION_TICKS,
     GAME_OVER_DELAY_TICKS,
     INVINCIBILITY_DURATION_TICKS,
+    SCORE_LEVEL_CLEAR,
+    SCORE_PER_TANK,
+    SCORE_TIME_BONUS_PER_SEC,
     SIM_TICK_MS,
     STARTING_LIVES,
     TANK_MOVE_TICKS,
@@ -91,6 +94,9 @@ export class Engine implements GameController {
      * `advanceLevel()`. */
     private playerCount = 1;
     private players: PlayerEntity[] = [];
+    /** Shared run score — accrues across levels, reset by `start()` (unless
+     * resuming) and `returnToMenu()`. */
+    private score = 0;
     private status: GameStatus = 'idle';
     private timeRemainingSec = TIME_LIMIT_SEC;
     private tanksFrozenUntilTick = 0;
@@ -128,6 +134,7 @@ export class Engine implements GameController {
             levelIndex: this.levelIndex,
             totalLevels: LEVELS.length,
             lives: this.players[0].lives,
+            score: this.score,
         };
     }
 
@@ -169,21 +176,39 @@ export class Engine implements GameController {
         this.emit({ type: 'gameStarted' });
         this.emit({ type: 'levelChanged', levelIndex: this.levelIndex, totalLevels: LEVELS.length });
         for (const p of this.players) this.emit({ type: 'livesChanged', playerId: p.id, lives: p.lives });
+        this.emit({ type: 'scoreChanged', score: this.score });
         this.spawnWave();
     }
 
-    /** Starts a fresh game (or restarts after a win/loss) — always from the
-     * first level. `playerCount` picks solo (1) vs local co-op (2). */
-    start(playerCount = 1): void {
+    private addScore(points: number): void {
+        this.score += points;
+        this.emit({ type: 'scoreChanged', score: this.score });
+    }
+
+    /** Starts a fresh game — from the first level, or from `resume` (a saved
+     * run: level index + lives + score, produced by X3's cloud-save).
+     * `playerCount` picks solo (1) vs local co-op (2). */
+    start(playerCount = 1, resume?: { levelIndex: number; lives: number; score: number }): void {
         this.playerCount = Math.min(Math.max(playerCount, 1), 2);
-        this.resetState(0);
+        this.score = resume?.score ?? 0;
+        if (resume) {
+            const carry = Array.from({ length: this.playerCount }, () => ({ lives: resume.lives, active: true }));
+            this.resetState(this.clampLevelIndex(resume.levelIndex), carry);
+        } else {
+            this.resetState(0);
+        }
         this.beginLevel();
+    }
+
+    private clampLevelIndex(index: number): number {
+        return Math.min(Math.max(Math.trunc(index) || 0, 0), LEVELS.length - 1);
     }
 
     /** Ports the DOM version's `gameInit()` (GameResult's restart button): back
      * to the menu, not straight back into a new game. */
     returnToMenu(): void {
         this.playerCount = 1;
+        this.score = 0;
         this.resetState(0);
         this.status = 'idle';
         this.emit({ type: 'gameReset' });
@@ -459,6 +484,7 @@ export class Engine implements GameController {
     private destroyTank(keyIndex: number, position: Position): void {
         this.tanks = this.tanks.filter(t => t.keyIndex !== keyIndex);
         this.emit({ type: 'tankDestroyed', keyIndex, position });
+        this.addScore(SCORE_PER_TANK);
         this.releaseBoom(position);
         if (isAllTanksCleared(this.tanks)) this.winGame();
     }
@@ -556,6 +582,7 @@ export class Engine implements GameController {
         if (this.status !== 'playing') return;
         this.status = 'won';
         this.tanks = [];
+        this.addScore(SCORE_LEVEL_CLEAR + this.timeRemainingSec * SCORE_TIME_BONUS_PER_SEC);
         this.emit({ type: 'gameWon' });
     }
 

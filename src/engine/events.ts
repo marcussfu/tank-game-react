@@ -20,6 +20,7 @@ export type EngineEvent =
     | { type: 'shortOfTime' }
     | { type: 'levelChanged'; levelIndex: number; totalLevels: number }
     | { type: 'livesChanged'; playerId: number; lives: number }
+    | { type: 'scoreChanged'; score: number }
     | { type: 'powerupSpawned'; keyIndex: string; position: Position; kind: PowerupKind }
     | { type: 'powerupCollected'; kind: PowerupKind };
 

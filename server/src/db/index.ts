@@ -1,27 +1,13 @@
 /**
- * The one storage seam the HTTP layer talks to. X2 ships the interface plus a
- * file-backed `JsonDb` and an in-memory `MemoryDb`; the leaderboard / cloud-save
- * routes that call `addScore` etc. land in X3. Kept narrow and SQL-shaped so an
- * X6 `D1Db` / Postgres impl drops in without touching routes.
+ * The one storage seam the HTTP layer talks to — a narrow, SQL-shaped
+ * interface with a file-backed `JsonDb` and an in-memory `MemoryDb`, so an X6
+ * `D1Db` / Postgres impl drops in without touching routes. Row shapes are the
+ * shared wire types (`src/net/apiTypes.ts`).
  */
 
-export interface ScoreRow {
-    id: string;
-    name: string;
-    score: number;
-    /** 1-based level the run reached. */
-    level: number;
-    /** 'solo' | 'coop' | 'online' — free-form, validated at the route. */
-    mode: string;
-    createdAt: number;
-}
+import type { SaveRow, ScoreRow } from '../../../src/net/apiTypes';
 
-export interface SaveRow {
-    levelIndex: number;
-    lives: number;
-    score: number;
-    updatedAt: number;
-}
+export type { SaveRow, ScoreRow };
 
 export interface ListScoresOptions {
     limit?: number;

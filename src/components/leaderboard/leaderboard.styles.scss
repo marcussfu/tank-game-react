@@ -1,0 +1,50 @@
+@use '../../app/tokens' as *;
+
+.leaderboard-container {
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    background-color: $color-bg-black;
+    color: $color-text;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5vw;
+
+    .leaderboard-title {
+        font-size: 3vw;
+        margin: 0;
+        letter-spacing: 0.1em;
+    }
+
+    .leaderboard-msg {
+        font-size: 1.6vw;
+        color: $color-text-muted;
+    }
+
+    .leaderboard-table {
+        border-collapse: collapse;
+        font-size: 1.4vw;
+        font-variant-numeric: tabular-nums;
+
+        td {
+            padding: 0.3vw 1vw;
+        }
+        .rank {
+            color: $color-text-muted;
+            text-align: right;
+        }
+        .score {
+            text-align: right;
+            color: #ffd700;
+        }
+        .lvl {
+            color: $color-text-muted;
+        }
+        tr.is-me {
+            color: #3ad13a;
+            font-weight: bold;
+        }
+    }
+}
