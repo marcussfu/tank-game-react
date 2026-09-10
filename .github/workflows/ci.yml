@@ -29,3 +29,6 @@ jobs:
       - run: npm run server:test
 
       - run: npm run build
+
+      # Smoke: the server container image builds (no deploy).
+      - run: docker build -f server/Dockerfile -t tank-server .

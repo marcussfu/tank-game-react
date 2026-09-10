@@ -26,5 +26,11 @@
   // Only the shared wire types from src/net — the rest of that folder
   // (NetworkGameClient, interpolate, wsUrl) is browser-only and uses
   // import.meta.env, which this Node project doesn't type.
-  "include": ["src/**/*", "../src/engine/**/*", "../src/types/**/*", "../src/net/protocol.ts"]
+  "include": [
+    "src/**/*",
+    "../src/engine/**/*",
+    "../src/types/**/*",
+    "../src/net/protocol.ts",
+    "../src/net/apiTypes.ts"
+  ]
 }
