@@ -5,6 +5,7 @@ import { makeFakeEngine } from '../../test/fakeEngine';
 import GameResult from './game-result.component';
 import { audioManager } from '../../audio/AudioManager';
 import * as apiModule from '../../services/api';
+import { TIPS } from '../../engine/maps/tips';
 
 const lastLevelHud = { timeRemainingSec: 100, enemiesRemaining: 0, levelIndex: 1, totalLevels: 2, lives: 3, livesP2: null, score: 4200 };
 const firstLevelHud = { timeRemainingSec: 100, enemiesRemaining: 0, levelIndex: 0, totalLevels: 2, lives: 3, livesP2: null, score: 900 };
@@ -36,13 +37,14 @@ describe('GameResult', () => {
         expect(screen.getByText('SCORE 4,200')).toBeInTheDocument();
     });
 
-    it('STAGE CLEAR advances on mousedown / Enter, and shows no score form', () => {
+    it('STAGE CLEAR shows the next level tip, advances on mousedown, and has no score form', () => {
         const engine = makeFakeEngine();
         renderWithStore(<GameResult engine={engine} />, {
             world: { status: 'won', shortOfTime: false },
-            hud: firstLevelHud,
+            hud: firstLevelHud, // levelIndex 0 → next-level tip is TIPS[1]
         });
         expect(screen.getByText('CLEAR')).toBeInTheDocument();
+        expect(screen.getByText(TIPS[1])).toBeInTheDocument();
         expect(screen.queryByLabelText('name')).not.toBeInTheDocument();
 
         fireEvent.mouseDown(window);

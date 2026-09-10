@@ -5,6 +5,7 @@ import Button from '../button/button.component';
 import Leaderboard from '../leaderboard/leaderboard.component';
 import { submitScore } from '../../services/api';
 import { getLastName, setLastName } from '../../services/playerKey';
+import { tipFor } from '../../engine/maps/tips';
 
 import './game-result.styles.scss';
 import type { GameController } from '../../engine/GameController';
@@ -78,6 +79,7 @@ const GameResult = ({ engine, online = false }: GameResultProps) => {
                 <Fragment>
                     <div className='result-text'>STAGE</div>
                     <div className='result-text'>CLEAR</div>
+                    <div className='result-tip'>{tipFor(levelIndex + 1)}</div>
                 </Fragment>
             )}
             {won && !hasNextLevel && (

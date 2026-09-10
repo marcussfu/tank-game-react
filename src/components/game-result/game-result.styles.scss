@@ -21,6 +21,14 @@
         letter-spacing: 0.1em;
     }
 
+    .result-tip {
+        color: $color-text;
+        font-size: 1.2vw;
+        margin-top: 1.5vw;
+        padding: 0 8vw;
+        text-align: center;
+    }
+
     .result-submit {
         margin-top: 1.5vw;
         display: flex;

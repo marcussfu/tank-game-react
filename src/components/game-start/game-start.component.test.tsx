@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitForElementToBeRemoved } from '@test
 import userEvent from '@testing-library/user-event';
 import GameStart from './game-start.component';
 import { audioManager } from '../../audio/AudioManager';
+import { TIPS } from '../../engine/maps/tips';
 
 describe('GameStart', () => {
     afterEach(() => {
@@ -33,6 +34,16 @@ describe('GameStart', () => {
         fireEvent.click(screen.getByText('ONLINE CO-OP'));
         act(() => { vi.advanceTimersByTime(5300); });
         expect(onStart).toHaveBeenCalledWith({ online: true, playerCount: 2 });
+    });
+
+    it('shows the level-1 opening tip on the stage transition', () => {
+        vi.useFakeTimers();
+        vi.spyOn(audioManager, 'playBg').mockImplementation(() => {});
+        render(<GameStart onStart={vi.fn()} />);
+
+        fireEvent.click(screen.getByText('1 PLAYER'));
+        act(() => { vi.advanceTimersByTime(300); });
+        expect(screen.getByText(TIPS[0])).toBeInTheDocument();
     });
 
     it('opens and closes the RULES dialog', async () => {
