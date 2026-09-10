@@ -1,0 +1,74 @@
+{
+  "kill": [
+    "TANK DOWN!",
+    "TARGET DESTROYED!",
+    "SCRATCH ONE!",
+    "BOOM! GOT HIM!",
+    "ENEMY WRECKED!",
+    "NICE SHOT!",
+    "ONE LESS TANK!",
+    "DIRECT HIT!",
+    "HULL BREACHED!",
+    "KEEP FIRING!"
+  ],
+  "streak": [
+    "TRIPLE KILL!",
+    "ON FIRE!",
+    "UNSTOPPABLE!",
+    "RAMPAGE!",
+    "CLEAR THE FIELD!",
+    "THEY CAN'T STOP YOU!",
+    "TANK BUSTER!",
+    "DOMINATING!"
+  ],
+  "lowTime": [
+    "TIME'S RUNNING OUT!",
+    "HURRY UP!",
+    "CLOCK'S ALMOST DEAD!",
+    "MOVE IT, SOLDIER!",
+    "SECONDS LEFT!",
+    "NO TIME TO WASTE!",
+    "GO GO GO!",
+    "BEAT THE CLOCK!"
+  ],
+  "eagleLost": [
+    "EAGLE DOWN!",
+    "BASE DESTROYED!",
+    "WE LOST THE BASE!",
+    "THE EAGLE IS GONE!",
+    "GAME OVER, MAN!",
+    "THEY GOT THE EAGLE!"
+  ],
+  "star": [
+    "STAR SECURED!",
+    "MISSION COMPLETE!",
+    "GOT THE STAR!",
+    "OBJECTIVE CLEAR!",
+    "NICE GRAB!",
+    "STAGE WON!"
+  ],
+  "powerup": [
+    "POWER UP!",
+    "GEARED UP!",
+    "FEEL THE POWER!",
+    "UPGRADE ACQUIRED!",
+    "NOW YOU'RE LOADED!",
+    "BONUS GRABBED!"
+  ],
+  "respawn": [
+    "BACK IN ACTION!",
+    "SHAKE IT OFF!",
+    "TANK REBUILT!",
+    "GET BACK IN THERE!",
+    "ROLL OUT AGAIN!",
+    "ONE LIFE DOWN!"
+  ],
+  "levelUp": [
+    "STAGE CLEAR!",
+    "NEXT SECTOR!",
+    "PUSH FORWARD!",
+    "NEW GROUND!",
+    "KEEP ROLLING!",
+    "ADVANCE!"
+  ]
+}

@@ -31,6 +31,7 @@
     "react-redux": "^9.3.0"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
     "@babel/core": "^8.0.1",
     "@eslint/js": "^10.0.1",
     "@rolldown/plugin-babel": "^0.2.3",
