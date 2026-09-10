@@ -7,6 +7,7 @@ import titleImg from '../../assets/scene/title.png';
 import { audioManager } from '../../audio/AudioManager';
 import { clearSave, loadSave } from '../../services/api';
 import { getPlayerKey } from '../../services/playerKey';
+import { tipFor } from '../../engine/maps/tips';
 import type { SaveRow } from '../../net/apiTypes';
 
 import './game-start.styles.scss';
@@ -102,7 +103,10 @@ const GameStart = ({ onStart }: GameStartProps) => {
             {isShowTransitionStage && <div className='stage-container'>
                 <div className='stage-bg-up'></div>
                 <div className='stage-bg-down'></div>
-                <div className='stage-text'>STAGE&nbsp;&nbsp;&nbsp;&nbsp;1</div>
+                <div className='stage-text'>
+                    <div>STAGE&nbsp;&nbsp;&nbsp;&nbsp;1</div>
+                    <div className='stage-tip'>{tipFor(0)}</div>
+                </div>
             </div>}
             <GameIntroDialog open={showIntro} onClose={() => setShowIntro(false)} />
             {showLeaderboard && <Leaderboard onClose={() => setShowLeaderboard(false)} />}
