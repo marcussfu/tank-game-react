@@ -12,6 +12,8 @@ export interface HudState {
     lives: number;
     /** Player 2's remaining lives, or null in a solo game (HUD hides the P2 counter). */
     livesP2: number | null;
+    /** Shared run score. */
+    score: number;
 }
 
 const initialState: HudState = {
@@ -21,6 +23,7 @@ const initialState: HudState = {
     totalLevels: LEVELS.length,
     lives: STARTING_LIVES,
     livesP2: null,
+    score: 0,
 };
 
 const hudSlice = createSlice({
@@ -41,11 +44,14 @@ const hudSlice = createSlice({
             if (action.payload.playerId === 0) state.lives = action.payload.lives;
             else state.livesP2 = action.payload.lives;
         },
+        setScore(state, action: PayloadAction<number>) {
+            state.score = action.payload;
+        },
         resetHud() {
             return initialState;
         },
     },
 });
 
-export const { setTimeRemaining, setEnemiesRemaining, setLevel, setLives, resetHud } = hudSlice.actions;
+export const { setTimeRemaining, setEnemiesRemaining, setLevel, setLives, setScore, resetHud } = hudSlice.actions;
 export default hudSlice.reducer;

@@ -38,5 +38,6 @@ export const emptySnapshot = (playerCount = 1): EngineSnapshot => {
         levelIndex: 0,
         totalLevels: LEVELS.length,
         lives: players[0].lives,
+        score: 0,
     };
 };

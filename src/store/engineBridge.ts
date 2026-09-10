@@ -1,7 +1,7 @@
 import type { GameController } from '../engine/GameController';
 import { TIME_LIMIT_SEC } from '../engine/constants';
 import { setStatus, setShortOfTime } from './worldSlice';
-import { setTimeRemaining, setEnemiesRemaining, setLevel, setLives, resetHud } from './hudSlice';
+import { setTimeRemaining, setEnemiesRemaining, setLevel, setLives, setScore, resetHud } from './hudSlice';
 import type { AppDispatch } from './store';
 
 /**
@@ -51,6 +51,9 @@ export const engineBridge = (engine: GameController, dispatch: AppDispatch): (()
                 break;
             case 'livesChanged':
                 dispatch(setLives({ playerId: event.playerId, lives: event.lives }));
+                break;
+            case 'scoreChanged':
+                dispatch(setScore(event.score));
                 break;
             case 'tankSpawned':
                 enemiesRemaining += 1;

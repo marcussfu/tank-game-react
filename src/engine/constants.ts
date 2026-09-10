@@ -55,3 +55,9 @@ export const POWERUP_SPAWN_INTERVAL_SEC = 30;
 // How long the invincibility/freeze effects last once picked up.
 export const INVINCIBILITY_DURATION_TICKS = 100; // 5s at SIM_TICK_MS=50
 export const FREEZE_DURATION_TICKS = 60; // 3s
+
+// Run score: points per enemy tank, a flat per-level-clear bonus, and a
+// per-remaining-second time bonus applied when a level is won.
+export const SCORE_PER_TANK = 100;
+export const SCORE_LEVEL_CLEAR = 500;
+export const SCORE_TIME_BONUS_PER_SEC = 5;

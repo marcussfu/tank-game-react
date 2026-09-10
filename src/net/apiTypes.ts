@@ -1,8 +1,7 @@
 /**
  * Shared request/response shapes for the REST API — imported by both
- * `src/services/api.ts` (browser) and `server/src/http/` (Node), the same
- * cross-boundary pattern as `protocol.ts`. X2 has only `/health`; leaderboard /
- * save shapes arrive with X3, `/hint` with X5.
+ * `src/services/api.ts` (browser) and `server/src/` (Node), the same
+ * cross-boundary pattern as `protocol.ts`. `/hint` shapes arrive with X5.
  */
 
 export interface HealthResponse {
@@ -10,3 +9,31 @@ export interface HealthResponse {
     /** Server clock at response time (ms). */
     ts: number;
 }
+
+// ---- leaderboard ----
+
+export interface ScoreRow {
+    id: string;
+    name: string;
+    score: number;
+    /** 1-based level the run reached. */
+    level: number;
+    /** 'solo' | 'coop' | 'online' — validated at the route. */
+    mode: string;
+    createdAt: number;
+}
+
+/** `POST /scores` body. */
+export type ScoreSubmission = Pick<ScoreRow, 'name' | 'score' | 'level' | 'mode'>;
+
+// ---- cloud save ----
+
+export interface SaveRow {
+    levelIndex: number;
+    lives: number;
+    score: number;
+    updatedAt: number;
+}
+
+/** `PUT /save/:key` body. */
+export type SavePayload = Pick<SaveRow, 'levelIndex' | 'lives' | 'score'>;
