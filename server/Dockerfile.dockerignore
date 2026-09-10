@@ -1,0 +1,30 @@
+# BuildKit reads this alongside server/Dockerfile even though the build
+# context is the repo root. Keep the context small — the server only needs
+# server/, src/engine, src/net, src/types and the root config files.
+node_modules
+**/node_modules
+dist
+server/dist
+coverage
+.git
+.github
+server/data
+**/*.log
+
+# web-app-only source the server never imports
+src/App.tsx
+src/App.styles.scss
+src/App.test.tsx
+src/main.tsx
+src/index.scss
+src/sw.ts
+src/vite-env.d.ts
+src/app
+src/assets
+src/audio
+src/components
+src/game-feed
+src/render
+src/store
+src/test
+src/services

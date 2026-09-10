@@ -1,24 +1,41 @@
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { GameServer } from './GameServer';
+import { makeDb } from './db/index';
+import { startHttpServer, DEFAULT_HTTP_PORT } from './http/server';
 
 /**
- * Entry point: a WebSocket server that hosts one `GameLoop` per room, forwards
- * each client's input to its own player slot, and broadcasts the authoritative
- * snapshot every tick. This is the server-authoritative half of network
- * multiplayer; M-MP-4 wires the browser client to read these snapshots.
+ * Entry point. Two surfaces on one Node process:
+ *  - the WebSocket game server (M-MP-3): one `GameLoop` per room, snapshot
+ *    broadcast, server-authoritative multiplayer.
+ *  - the REST API (X2+): leaderboard / cloud-save / LLM-hint proxy, backed by
+ *    a JSON file on disk (or an in-memory store when `DB_FILE` is unset).
  */
-const port = Number(process.env.PORT ?? 8787);
-const server = new GameServer({ port });
+const here = path.dirname(fileURLToPath(import.meta.url));
 
-server.listen().then((boundPort) => {
-    console.log(`[server] listening on ws://localhost:${boundPort}`);
+const wsPort = Number(process.env.PORT ?? 8787);
+const httpPort = Number(process.env.HTTP_PORT ?? DEFAULT_HTTP_PORT);
+const dbFile = process.env.DB_FILE ?? path.join(here, '..', 'data', 'app.json');
+
+const gameServer = new GameServer({ port: wsPort });
+const db = makeDb({ file: dbFile });
+
+const start = async () => {
+    const wsBound = await gameServer.listen();
+    console.log(`[server] websocket on ws://localhost:${wsBound}`);
     console.log('[server] join the "default" room to play; a 2nd joiner auto-starts co-op');
-});
 
-const shutdown = () => {
-    server.close().then(() => {
-        console.log('\n[server] stopped');
-        process.exit(0);
-    });
+    const http = await startHttpServer({ db }, httpPort);
+    console.log(`[server] rest api on http://localhost:${http.port}  (db: ${dbFile})`);
+
+    const shutdown = () => {
+        Promise.all([gameServer.close(), http.close(), db.close()]).then(() => {
+            console.log('\n[server] stopped');
+            process.exit(0);
+        });
+    };
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
 };
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+
+start();
