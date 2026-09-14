@@ -1,0 +1,33 @@
+@use '../../app/tokens' as *;
+
+.pause-menu {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2vw;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: $color-text;
+    text-align: center;
+
+    .pause-title {
+        font-size: 2rem;
+    }
+
+    .pause-hint-loading {
+        font-size: 1rem;
+        color: $color-text-muted;
+    }
+
+    .pause-hint-text {
+        font-size: 1rem;
+        max-width: 70%;
+        color: #ffd700;
+
+        &.pause-hint-error {
+            color: #ff5555;
+        }
+    }
+}

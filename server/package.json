@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.125.0",
     "@hono/node-server": "^2.1.1",
     "hono": "^4.13.7",
     "ws": "^8.18.0"

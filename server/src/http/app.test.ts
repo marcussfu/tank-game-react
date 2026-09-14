@@ -1,8 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { createApp } from './app';
 import { MemoryDb } from '../db/index';
+import type { HintClient } from '../llm/hintClient';
+import { emptySnapshot } from '../../../src/engine/emptySnapshot';
 
 const app = () => createApp({ db: new MemoryDb() });
+
+const stubHintClient = (hint = 'HOLD THE LINE.'): HintClient & { calls: string[] } => {
+    const calls: string[] = [];
+    return {
+        calls,
+        generate: async (prompt: string) => {
+            calls.push(prompt);
+            return hint;
+        },
+    };
+};
 
 describe('http app', () => {
     it('GET /health returns ok with a timestamp', async () => {
@@ -99,6 +112,55 @@ describe('http app', () => {
                 body: JSON.stringify({ levelIndex: -1, lives: 2, score: 0 }),
             });
             expect(res.status).toBe(400);
+        });
+    });
+
+    describe('POST /hint', () => {
+        it('sends the snapshot through the hint client and returns its text', async () => {
+            const hintClient = stubHintClient('WATCH THE WEST WALL.');
+            const a = createApp({ db: new MemoryDb(), hintClient });
+            const res = await a.request('/hint', {
+                method: 'POST',
+                body: JSON.stringify({ snapshot: emptySnapshot() }),
+            });
+            expect(res.status).toBe(200);
+            expect((await res.json()) as { hint: string }).toEqual({ hint: 'WATCH THE WEST WALL.' });
+            expect(hintClient.calls).toHaveLength(1);
+            expect(hintClient.calls[0]).toContain('MAP');
+        });
+
+        it('503s when no hint client is configured', async () => {
+            const res = await app().request('/hint', {
+                method: 'POST',
+                body: JSON.stringify({ snapshot: emptySnapshot() }),
+            });
+            expect(res.status).toBe(503);
+        });
+
+        it('400s a missing or malformed snapshot', async () => {
+            const a = createApp({ db: new MemoryDb(), hintClient: stubHintClient() });
+            expect((await a.request('/hint', { method: 'POST', body: '{}' })).status).toBe(400);
+            expect((await a.request('/hint', { method: 'POST', body: 'not json' })).status).toBe(400);
+        });
+
+        it('502s when the hint client throws', async () => {
+            const hintClient: HintClient = { generate: async () => { throw new Error('down'); } };
+            const a = createApp({ db: new MemoryDb(), hintClient });
+            const res = await a.request('/hint', {
+                method: 'POST',
+                body: JSON.stringify({ snapshot: emptySnapshot() }),
+            });
+            expect(res.status).toBe(502);
+        });
+
+        it('rate-limits after too many requests from the same (shared, in tests) bucket', async () => {
+            const hintClient = stubHintClient();
+            const a = createApp({ db: new MemoryDb(), hintClient });
+            const req = () => a.request('/hint', { method: 'POST', body: JSON.stringify({ snapshot: emptySnapshot() }) });
+
+            const statuses: number[] = [];
+            for (let i = 0; i < 12; i++) statuses.push((await req()).status);
+            expect(statuses.filter((s) => s === 429).length).toBeGreaterThan(0);
         });
     });
 });

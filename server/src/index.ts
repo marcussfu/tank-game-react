@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { GameServer } from './GameServer';
 import { makeDb } from './db/index';
+import { makeHintClient } from './llm/hintClient';
 import { startHttpServer, DEFAULT_HTTP_PORT } from './http/server';
 
 /**
@@ -25,8 +26,9 @@ const start = async () => {
     console.log(`[server] websocket on ws://localhost:${wsBound}`);
     console.log('[server] join the "default" room to play; a 2nd joiner auto-starts co-op');
 
-    const http = await startHttpServer({ db }, httpPort);
+    const http = await startHttpServer({ db, hintClient: makeHintClient() }, httpPort);
     console.log(`[server] rest api on http://localhost:${http.port}  (db: ${dbFile})`);
+    if (process.env.LLM_FAKE === '1') console.log('[server] LLM_FAKE=1 — /hint returns a canned response');
 
     const shutdown = () => {
         Promise.all([gameServer.close(), http.close(), db.close()]).then(() => {

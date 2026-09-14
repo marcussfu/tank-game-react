@@ -3,6 +3,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import worldReducer from './worldSlice';
 import hudReducer from './hudSlice';
 import settingsReducer from './settingsSlice';
+import hintReducer from './hintSlice';
 import feedReducer from '../game-feed/feedSlice';
 
 const store = configureStore({
@@ -10,6 +11,7 @@ const store = configureStore({
         world: worldReducer,
         hud: hudReducer,
         settings: settingsReducer,
+        hint: hintReducer,
         feed: feedReducer,
     },
 });

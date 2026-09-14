@@ -1,8 +1,10 @@
 /**
  * Shared request/response shapes for the REST API — imported by both
  * `src/services/api.ts` (browser) and `server/src/` (Node), the same
- * cross-boundary pattern as `protocol.ts`. `/hint` shapes arrive with X5.
+ * cross-boundary pattern as `protocol.ts`.
  */
+
+import type { EngineSnapshot } from '../engine/types';
 
 export interface HealthResponse {
     ok: boolean;
@@ -37,3 +39,15 @@ export interface SaveRow {
 
 /** `PUT /save/:key` body. */
 export type SavePayload = Pick<SaveRow, 'levelIndex' | 'lives' | 'score'>;
+
+// ---- pause hint (LLM) ----
+
+/** `POST /hint` body — the paused game's own snapshot (server-side only; the
+ * LLM key never reaches the browser). */
+export interface HintRequest {
+    snapshot: EngineSnapshot;
+}
+
+export interface HintResponse {
+    hint: string;
+}
