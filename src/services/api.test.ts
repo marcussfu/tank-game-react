@@ -9,7 +9,9 @@ import {
     loadSave,
     saveProgress,
     clearSave,
+    requestHint,
 } from './api';
+import { emptySnapshot } from '../engine/emptySnapshot';
 
 const mockFetch = (impl: (url: URL, init?: RequestInit) => Response) => {
     vi.stubGlobal('fetch', vi.fn(async (url: URL, init?: RequestInit) => impl(url, init)));
@@ -100,5 +102,16 @@ describe('api', () => {
     it('clearSave swallows failures', async () => {
         vi.stubGlobal('fetch', vi.fn(async () => new Response('boom', { status: 500 })));
         await expect(clearSave('k')).resolves.toBeUndefined();
+    });
+
+    it('requestHint POSTs the snapshot to /hint and returns the hint text', async () => {
+        const snapshot = emptySnapshot();
+        mockFetch((url, init) => {
+            expect(url.pathname).toBe('/hint');
+            expect(init?.method).toBe('POST');
+            expect(JSON.parse(String(init?.body))).toEqual({ snapshot });
+            return new Response(JSON.stringify({ hint: 'HOLD THE LINE.' }), { status: 200 });
+        });
+        expect(await requestHint(snapshot)).toEqual({ hint: 'HOLD THE LINE.' });
     });
 });

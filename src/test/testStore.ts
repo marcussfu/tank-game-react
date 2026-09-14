@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import worldReducer from '../store/worldSlice';
 import hudReducer from '../store/hudSlice';
 import settingsReducer from '../store/settingsSlice';
+import hintReducer from '../store/hintSlice';
 import feedReducer from '../game-feed/feedSlice';
 import type { RootState } from '../store/store';
 
@@ -14,6 +15,7 @@ export const makeTestStore = (preloadedState?: Partial<RootState>) =>
             world: worldReducer,
             hud: hudReducer,
             settings: settingsReducer,
+            hint: hintReducer,
             feed: feedReducer,
         },
         // Tests only ever preload a subset of slices; the rest fall back to

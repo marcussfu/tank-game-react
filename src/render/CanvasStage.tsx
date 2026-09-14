@@ -9,6 +9,7 @@ import { useResizeCanvas } from './useResizeCanvas';
 import { MAP_WIDTH, MAP_HEIGHT, SIM_TICK_MS } from '../engine/constants';
 import type { Direction } from '../engine/types';
 import { useAppSelector } from '../store/hooks';
+import PauseMenu from '../components/pause-menu/pause-menu.component';
 
 // Caps how many sim ticks a single RAF frame will "catch up" on, so
 // backgrounding the tab and returning doesn't trigger a death-spiral of
@@ -162,16 +163,7 @@ const CanvasStage = ({ engine, netClient }: CanvasStageProps) => {
                 ref={entityCanvasRef}
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', imageRendering: 'pixelated' }}
             />
-            {status === 'paused' && (
-                <div style={{
-                    position: 'absolute', inset: 0, display: 'flex',
-                    alignItems: 'center', justifyContent: 'center',
-                    fontSize: '2rem', color: 'white',
-                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                }}>
-                    PAUSED
-                </div>
-            )}
+            {status === 'paused' && <PauseMenu engine={engine} />}
         </div>
     );
 };

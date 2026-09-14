@@ -1,15 +1,37 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { getConnInfo } from '@hono/node-server/conninfo';
+import type { Context } from 'hono';
 import type { Db } from '../db/index';
-import type { HealthResponse } from '../../../src/net/apiTypes';
+import { buildHintPrompt } from '../llm/prompt';
+import type { HintClient } from '../llm/hintClient';
+import type { EngineSnapshot } from '../../../src/engine/types';
+import type { HealthResponse, HintResponse } from '../../../src/net/apiTypes';
 
 export interface HttpDeps {
     db: Db;
+    /** Only required if `/hint` is actually called — tests that never hit it
+     * can omit this. */
+    hintClient?: HintClient;
 }
 
 const MAX_NAME = 12;
 const MAX_LIMIT = 100;
 const MODES = new Set(['solo', 'coop', 'online']);
+
+const HINT_RATE_LIMIT = 10;
+const HINT_RATE_WINDOW_MS = 60_000;
+
+const hintClientKey = (c: Context): string => {
+    // Per-IP when we can get it; `getConnInfo` throws outside a real Node
+    // socket (e.g. Hono's `app.request()` in tests) — fall back to one
+    // shared bucket there.
+    try {
+        return getConnInfo(c).remote.address ?? 'unknown';
+    } catch {
+        return 'unknown';
+    }
+};
 
 /**
  * The REST surface, runtime-agnostic (Hono): `/health`, the leaderboard
@@ -20,6 +42,16 @@ const MODES = new Set(['solo', 'coop', 'online']);
  */
 export const createApp = (deps: HttpDeps) => {
     const app = new Hono();
+    // This is a local, no-auth hobby server (no deploy in this track — see
+    // plan X6), so a simple in-memory bucket per app instance is enough.
+    const hintHits = new Map<string, number[]>();
+    const withinHintRateLimit = (key: string): boolean => {
+        const now = Date.now();
+        const recent = (hintHits.get(key) ?? []).filter((t) => now - t < HINT_RATE_WINDOW_MS);
+        recent.push(now);
+        hintHits.set(key, recent);
+        return recent.length <= HINT_RATE_LIMIT;
+    };
 
     // Local dev only — the browser app and this server are on different ports.
     app.use('*', cors());
@@ -68,6 +100,25 @@ export const createApp = (deps: HttpDeps) => {
     app.delete('/save/:key', async (c) => {
         await deps.db.deleteSave(c.req.param('key'));
         return c.body(null, 204);
+    });
+
+    app.post('/hint', async (c) => {
+        if (!withinHintRateLimit(hintClientKey(c))) {
+            return c.json({ error: 'rate limit exceeded, try again in a bit' }, 429);
+        }
+        if (!deps.hintClient) {
+            return c.json({ error: 'hint service not configured' }, 503);
+        }
+        const body = (await c.req.json().catch(() => null)) as { snapshot?: EngineSnapshot } | null;
+        if (!body?.snapshot || !Array.isArray(body.snapshot.tiles)) {
+            return c.json({ error: 'invalid snapshot' }, 400);
+        }
+        try {
+            const hint = await deps.hintClient.generate(buildHintPrompt(body.snapshot));
+            return c.json<HintResponse>({ hint });
+        } catch {
+            return c.json({ error: 'hint unavailable' }, 502);
+        }
     });
 
     return app;
