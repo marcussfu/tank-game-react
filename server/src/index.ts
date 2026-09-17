@@ -3,31 +3,33 @@ import path from 'node:path';
 import { GameServer } from './GameServer';
 import { makeDb } from './db/index';
 import { makeHintClient } from './llm/hintClient';
-import { startHttpServer, DEFAULT_HTTP_PORT } from './http/server';
+import { startHttpServer, DEFAULT_PORT } from './http/server';
 
 /**
- * Entry point. Two surfaces on one Node process:
- *  - the WebSocket game server (M-MP-3): one `GameLoop` per room, snapshot
- *    broadcast, server-authoritative multiplayer.
- *  - the REST API (X2+): leaderboard / cloud-save / LLM-hint proxy, backed by
- *    a JSON file on disk (or an in-memory store when `DB_FILE` is unset).
+ * Entry point. One Node process, one port: the REST API (X2+) and the
+ * WebSocket game server (M-MP-3) share the same HTTP server — `ws` upgrades
+ * requests on it at `/ws` instead of opening a second port, so single-port
+ * deploy targets (Render, most PaaS free tiers) need no extra config.
+ * `PORT` follows the platform-injected convention most hosts use.
  */
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-const wsPort = Number(process.env.PORT ?? 8787);
-const httpPort = Number(process.env.HTTP_PORT ?? DEFAULT_HTTP_PORT);
+const port = Number(process.env.PORT ?? DEFAULT_PORT);
 const dbFile = process.env.DB_FILE ?? path.join(here, '..', 'data', 'app.json');
 
-const gameServer = new GameServer({ port: wsPort });
 const db = makeDb({ file: dbFile });
 
 const start = async () => {
-    const wsBound = await gameServer.listen();
-    console.log(`[server] websocket on ws://localhost:${wsBound}`);
-    console.log('[server] join the "default" room to play; a 2nd joiner auto-starts co-op');
-
-    const http = await startHttpServer({ db, hintClient: makeHintClient() }, httpPort);
+    const http = await startHttpServer({ db, hintClient: makeHintClient() }, port);
     console.log(`[server] rest api on http://localhost:${http.port}  (db: ${dbFile})`);
+
+    // `startHttpServer` never enables HTTP/2, so `http.raw` is always a plain
+    // `node:http` server at runtime even though `@hono/node-server` types it
+    // as the broader `ServerType` union.
+    const gameServer = new GameServer({ server: http.raw as import('node:http').Server, path: '/ws' });
+    await gameServer.listen();
+    console.log(`[server] websocket on ws://localhost:${http.port}/ws`);
+    console.log('[server] join the "default" room to play; a 2nd joiner auto-starts co-op');
     if (process.env.LLM_FAKE === '1') console.log('[server] LLM_FAKE=1 — /hint returns a canned response');
 
     const shutdown = () => {
