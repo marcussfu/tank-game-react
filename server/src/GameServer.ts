@@ -1,6 +1,7 @@
 import { WebSocketServer } from 'ws';
 import type { WebSocket } from 'ws';
 import type { AddressInfo } from 'node:net';
+import type { Server as HttpServer } from 'node:http';
 import { Room } from './Room';
 import type { RoomClient } from './Room';
 import type { GameLoopOptions } from './GameLoop';
@@ -13,8 +14,16 @@ import {
 import type { ServerMessage } from '../../src/net/protocol';
 
 export interface GameServerOptions {
-    /** TCP port. 0 (the default in tests) picks a free ephemeral port. */
+    /** TCP port. 0 (the default in tests) picks a free ephemeral port.
+     * Ignored when `server` is set. */
     port?: number;
+    /** An already-listening HTTP server to attach WebSocket upgrade handling
+     * to, so the game socket and the REST API share one port (needed by
+     * single-port deploy targets). When omitted, `listen()` opens its own
+     * standalone port instead — used by every test in this file/`Room.test.ts`. */
+    server?: HttpServer;
+    /** Path to accept WS upgrades on. Only meaningful with `server`. */
+    path?: string;
     /** Forwarded to every room's GameLoop — tests pass a small tickMs. */
     loopOptions?: GameLoopOptions;
 }
@@ -42,8 +51,16 @@ export class GameServer {
         this.options = options;
     }
 
-    /** Starts listening. Resolves with the actual bound port. */
+    /** Starts listening (or, given `server`, attaches to it). Resolves with
+     * the bound port. */
     listen(): Promise<number> {
+        if (this.options.server) {
+            const wss = new WebSocketServer({ server: this.options.server, path: this.options.path });
+            this.wss = wss;
+            wss.on('connection', (socket) => this.onConnection(socket));
+            const addr = this.options.server.address();
+            return Promise.resolve(typeof addr === 'object' && addr ? addr.port : 0);
+        }
         return new Promise((resolve, reject) => {
             const wss = new WebSocketServer({ port: this.options.port ?? 0 });
             this.wss = wss;
