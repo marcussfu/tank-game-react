@@ -11,11 +11,14 @@
 FROM node:22-slim
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-COPY server/package.json ./server/package.json
-RUN npm ci
-
+# Copy the whole repo before `npm ci`, not just the package.json files: `npm ci`
+# in an npm-workspaces monorepo validates the lockfile against every workspace
+# member, and the image's bundled npm version has been observed to reject a
+# partial copy that the exact same lockfile passes fine at the repo root in CI.
+# This sacrifices Docker layer caching, but this Dockerfile is local-parity-only
+# (see header), not a production build optimised for rebuild speed.
 COPY . .
+RUN npm ci
 
 ENV NODE_ENV=production
 ENV DB_FILE=/app/server/data/app.json
