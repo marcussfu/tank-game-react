@@ -1,0 +1,34 @@
+# Render Blueprint for @tank/server (WS game server + REST API, one port —
+# see server/src/GameServer.ts / server/src/index.ts). Render auto-deploys on
+# every push to the connected branch by default (no extra config needed for
+# that); this file just describes the service so it's reproducible from a
+# fresh Render account instead of clicking through the dashboard by hand.
+#
+# To use: push this file, then in the Render dashboard choose
+# "New +" -> "Blueprint", connect this GitHub repo, and Render reads this
+# file automatically. ANTHROPIC_API_KEY is marked sync:false so Render won't
+# try to source it from here -- set it once in the dashboard after creation.
+#
+# NB: Render's free web services have no persistent disk (that's a paid-plan
+# feature), so the JSON leaderboard/save file resets on every deploy and on
+# every wake-from-sleep restart (free services sleep after 15min idle). Fine
+# for testing; if that matters long-term, either upgrade to a paid plan with
+# a Disk mounted at /app/server/data, or swap JsonDb for a real hosted DB.
+
+services:
+  - type: web
+    name: tank-game-server
+    runtime: docker
+    dockerfilePath: server/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_FILE
+        value: /app/server/data/app.json
+      - key: ANTHROPIC_API_KEY
+        sync: false
